@@ -31,6 +31,12 @@ export default function Dashboard() {
   const isAdmin = profile?.role === 'admin'
   const managerOutletId = !isAdmin ? profile?.outlet_id ?? '' : ''
 
+  const formatAttendanceTime = (timestamp: string) => {
+    const hasOffset = /([zZ]|[+-]\d{2}:?\d{2})$/.test(timestamp)
+    const normalized = hasOffset ? timestamp : `${timestamp}Z`
+    return new Date(normalized).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+  }
+
   // ---- load profile (role/outlet)
   const loadProfile = async () => {
     const { data: userData } = await supabase.auth.getUser()
@@ -274,7 +280,7 @@ export default function Dashboard() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">When (UTC)</th>
+                        <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">When (IST)</th>
                         <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Worker</th>
                         <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Action</th>
                         <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Outlet</th>
@@ -283,7 +289,7 @@ export default function Dashboard() {
                     <tbody className="divide-y divide-gray-100">
                       {attendance.map(a => (
                         <tr key={a.id} className="even:bg-gray-50">
-                          <td className="px-4 py-2 text-sm">{new Date(a.timestamp_utc).toLocaleString()}</td>
+                          <td className="px-4 py-2 text-sm">{formatAttendanceTime(a.timestamp_utc)}</td>
                           <td className="px-4 py-2 text-sm">{a.worker_name}</td>
                           <td className="px-4 py-2 text-sm">{a.action}</td>
                           <td className="px-4 py-2 text-sm">{a.outlet_name}</td>
