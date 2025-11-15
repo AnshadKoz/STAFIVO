@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:camera/camera.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
 
 import '../face/face_cropper.dart';
@@ -232,11 +233,13 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     _restartCameraPreview();
   }
 
-  void _startLocationTimeout(String action) {
+  void _startLocationTimeout() {
     _locationTimer?.cancel();
     _locationTimer = Timer(const Duration(seconds: 4), () {
-      if (!_locationCheckPassed && mounted) {
-        _showLocationAlert(action);
+      if (!_locationCheckPassed && mounted && _busy) {
+        setState(() {
+          _locationStatusMessage = 'Location unavailable. Turn it on and tap Check again.';
+        });
       }
     });
   }
@@ -244,47 +247,6 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   void _clearLocationTimeout() {
     _locationTimer?.cancel();
     _locationTimer = null;
-  }
-
-  Future<void> _showLocationAlert(String action) async {
-    if (!mounted) return;
-    final alreadyShowing = Navigator.of(context, rootNavigator: true).canPop();
-    if (alreadyShowing) return;
-    setState(() {
-      _locationStatusMessage = 'Turn on location and tap Retry.';
-    });
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Turn on location'),
-        content: const Text(
-          'Location seems to be turned off. Please enable location/GPS in your phone settings and then try again.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              _retryLocation(action);
-            },
-            child: const Text('Retry'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _retryLocation(String action) async {
-    if (!mounted) return;
-    setState(() {
-      _status = 'Checking location...';
-      _locationStatusMessage = 'Retrying location...';
-      _locationCheckPassed = false;
-    });
-    await _continueLocationCheck(action);
   }
 
   Future<void> _doAction(String action) async {
@@ -315,49 +277,41 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
       final faceOk = await _verifyFace();
       if (!faceOk) return;
 
-      _startLocationTimeout(action);
+      _startLocationTimeout();
       setState(() {
         _faceCheckPassed = true;
         _status = 'Checking location...';
       });
-      final outlet = await SupabaseRepo.outletByWorker(_selectedWorkerId!);
-      if (outlet == null) {
-        _toast('Outlet not found');
-        return;
-      }
-
-      final pos = await GeoService.currentPosition();
-      final dist = GeoService.distanceMeters(
-        pos.latitude,
-        pos.longitude,
-        (outlet['latitude'] as num).toDouble(),
-        (outlet['longitude'] as num).toDouble(),
-      );
-      final radius = (outlet['radius_meters'] as num).toDouble();
-      if (dist > radius) {
-        _toast(
-          'Outside outlet geofence (${dist.toStringAsFixed(1)} m > ${radius.toStringAsFixed(0)} m)',
-        );
-        return;
-      }
-
-      await _continueLocationCheck(action);
+      final success = await _continueLocationCheck(action);
+      if (!success) return;
     } finally {
       if (mounted) {
         setState(() => _busy = false);
       }
-      _clearLocationTimeout();
     }
   }
 
-  Future<void> _continueLocationCheck(String action) async {
+  Future<bool> _continueLocationCheck(String action) async {
     final outlet = await SupabaseRepo.outletByWorker(_selectedWorkerId!);
     if (outlet == null) {
+      _clearLocationTimeout();
       _toast('Outlet not found');
-      return;
+      return false;
     }
 
-    final pos = await GeoService.currentPosition();
+    Position? pos;
+    try {
+      pos = await GeoService.currentPosition();
+    } catch (e) {
+      _clearLocationTimeout();
+      if (mounted) {
+        setState(() {
+          _locationStatusMessage = 'Location unavailable. Turn it on and tap Check again.';
+        });
+      }
+      return false;
+    }
+
     final dist = GeoService.distanceMeters(
       pos.latitude,
       pos.longitude,
@@ -366,10 +320,11 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     );
     final radius = (outlet['radius_meters'] as num).toDouble();
     if (dist > radius) {
+      _clearLocationTimeout();
       _toast(
         'Outside outlet geofence (${dist.toStringAsFixed(1)} m > ${radius.toStringAsFixed(0)} m)',
       );
-      return;
+      return false;
     }
 
     _clearLocationTimeout();
@@ -381,7 +336,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     final last = await SupabaseRepo.lastAction(_selectedWorkerId!);
     if (last == action) {
       _toast('Already $action. Do the opposite action first.');
-      return;
+      return false;
     }
 
     final outletId = outlet['id'] as String;
@@ -402,10 +357,12 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
       await SupabaseRepo.insertAttendanceRaw(payload);
       _success('$action recorded');
       _setCompletionSummary(action);
+      return true;
     } on AttendanceNetworkError catch (e) {
       await OfflineQueue.addPending(payload: payload, reason: 'network:${e.message}');
       _success('$action queued (offline)');
       _setCompletionSummary(action);
+      return true;
     } on AttendanceServerDenied catch (e) {
       _toast('Server denied: ${e.message}');
     } on AttendanceAuthError catch (e) {
@@ -414,7 +371,9 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
       await OfflineQueue.addPending(payload: payload, reason: 'unknown:$e');
       _success('$action queued (offline)');
       _setCompletionSummary(action);
+      return true;
     }
+    return false;
   }
 
   void _setCompletionSummary(String action) {
