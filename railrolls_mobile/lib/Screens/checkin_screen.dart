@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
@@ -7,8 +9,11 @@ import '../face/face_cropper.dart';
 import '../face/face_embedder.dart';
 import '../face/mathx.dart';
 import '../services/geo.dart';
+import '../navigation/route_observer.dart';
 import '../services/offline_queue.dart';
 import '../services/supabase_repo.dart';
+import '../widgets/face_frame_overlay.dart';
+import '../widgets/railrolls_app_bar.dart';
 
 class CheckInScreen extends StatefulWidget {
   const CheckInScreen({super.key});
@@ -17,7 +22,7 @@ class CheckInScreen extends StatefulWidget {
   State<CheckInScreen> createState() => _CheckInScreenState();
 }
 
-class _CheckInScreenState extends State<CheckInScreen> {
+class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   static const double _faceThreshold = 0.40;
 
   CameraController? _camera;
@@ -26,16 +31,33 @@ class _CheckInScreenState extends State<CheckInScreen> {
   bool _ready = false;
   bool _busy = false;
   String? _pipelineError;
+  bool _cameraInitializing = false;
+  String? _cameraError;
 
   String? _selectedWorkerId;
   List<Map<String, dynamic>> _workers = [];
   String _status = 'Ready';
   double? _lastFaceScore;
+  bool _faceCheckPassed = false;
+  bool _locationCheckPassed = false;
+  String? _lastActionSummary;
+  Timer? _locationTimer;
+  String? _locationStatusMessage;
 
   @override
   void initState() {
     super.initState();
     _initAll();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute && route.isCurrent) {
+      railRouteObserver.unsubscribe(this);
+      railRouteObserver.subscribe(this, route);
+    }
   }
 
   Future<void> _initAll() async {
@@ -47,29 +69,222 @@ class _CheckInScreenState extends State<CheckInScreen> {
       pipelineError = e.toString();
     }
 
-    final cameras = await availableCameras();
-    final camera = cameras.firstWhere(
-      (c) => c.lensDirection == CameraLensDirection.front,
-      orElse: () => cameras.first,
-    );
-    final controller = CameraController(camera, ResolutionPreset.medium, enableAudio: false);
-    await controller.initialize();
-
+    await _initializeCamera();
     if (!mounted) return;
     setState(() {
       _workers = rows;
-      _camera = controller;
       _pipelineError = pipelineError;
       _ready = true;
     });
   }
 
+  Future<CameraController> _createCameraController() async {
+    final cameras = await availableCameras();
+    if (cameras.isEmpty) {
+      throw CameraException('no_camera', 'No camera available on this device');
+    }
+    final camera = cameras.firstWhere(
+      (c) => c.lensDirection == CameraLensDirection.front,
+      orElse: () => cameras.first,
+    );
+    final presets = <ResolutionPreset>[
+      ResolutionPreset.medium,
+      ResolutionPreset.low,
+    ];
+    CameraException? lastError;
+    for (final preset in presets) {
+      final controller = CameraController(
+        camera,
+        preset,
+        enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.yuv420,
+      );
+      try {
+        await controller.initialize();
+        return controller;
+      } on CameraException catch (e) {
+        lastError = e;
+        await controller.dispose();
+      }
+    }
+    throw lastError ?? CameraException('init_failed', 'Unable to initialize camera');
+  }
+
+  Future<void> _disposeCameraController({bool updateState = true}) async {
+    final controller = _camera;
+    if (updateState && mounted) {
+      setState(() => _camera = null);
+    } else {
+      _camera = null;
+    }
+    if (controller != null) {
+      try {
+        await controller.dispose();
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _initializeCamera() async {
+    if (_cameraInitializing) return;
+    _cameraInitializing = true;
+    if (mounted) {
+      setState(() {
+        _cameraError = null;
+      });
+    }
+    await _disposeCameraController();
+    try {
+      final controller = await _createCameraController();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      setState(() {
+        _camera = controller;
+        _cameraError = null;
+      });
+    } on CameraException catch (e) {
+      if (mounted) {
+        setState(() => _cameraError = e.description ?? e.code);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _cameraError = e.toString());
+      }
+    } finally {
+      _cameraInitializing = false;
+    }
+  }
+
+  Future<void> _restartCameraPreview() async {
+    await _initializeCamera();
+  }
+
+  Future<void> _refreshWorkers({String? keepSelection}) async {
+    final rows = await RepoList.workers();
+    if (!mounted) return;
+    setState(() {
+      _workers = rows;
+      if (keepSelection != null && rows.any((w) => w['id'] == keepSelection)) {
+        _selectedWorkerId = keepSelection;
+      } else {
+        _selectedWorkerId = null;
+      }
+    });
+  }
+
+  Map<String, dynamic>? _findWorker(String? workerId) {
+    if (workerId == null) return null;
+    for (final worker in _workers) {
+      if (worker['id'] == workerId) {
+        return worker;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _handleWorkerChange(String? workerId) async {
+    if (workerId == null) {
+      setState(() => _selectedWorkerId = null);
+      return;
+    }
+
+    setState(() {
+      _selectedWorkerId = workerId;
+      _faceCheckPassed = false;
+      _locationCheckPassed = false;
+      _lastActionSummary = null;
+      _status = 'Ready';
+    });
+
+    final worker = _findWorker(workerId);
+    final enrolled = worker?['enrolled'] == true;
+    if (!enrolled) {
+      await _disposeCameraController();
+      if (!mounted) return;
+      final result = await Navigator.of(context).pushNamed('/enroll', arguments: workerId);
+      if (!mounted) return;
+      final completed = result == true || result == 'enrollment_completed';
+      if (completed) {
+        await _refreshWorkers(keepSelection: workerId);
+      }
+      await _restartCameraPreview();
+    }
+  }
+
   @override
   void dispose() {
-    _camera?.dispose();
+    railRouteObserver.unsubscribe(this);
+    _disposeCameraController(updateState: false);
+    _locationTimer?.cancel();
     _cropper.close();
     _embedder.close();
     super.dispose();
+  }
+
+  @override
+  void didPushNext() {
+    _disposeCameraController();
+  }
+
+  @override
+  void didPopNext() {
+    _restartCameraPreview();
+  }
+
+  void _startLocationTimeout(String action) {
+    _locationTimer?.cancel();
+    _locationTimer = Timer(const Duration(seconds: 4), () {
+      if (!_locationCheckPassed && mounted) {
+        _showLocationAlert(action);
+      }
+    });
+  }
+
+  void _clearLocationTimeout() {
+    _locationTimer?.cancel();
+    _locationTimer = null;
+  }
+
+  Future<void> _showLocationAlert(String action) async {
+    if (!mounted) return;
+    final alreadyShowing = Navigator.of(context, rootNavigator: true).canPop();
+    if (alreadyShowing) return;
+    setState(() {
+      _locationStatusMessage = 'Turn on location and tap Retry.';
+    });
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Turn on location'),
+        content: const Text(
+          'Location seems to be turned off. Please enable location/GPS in your phone settings and then try again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _retryLocation(action);
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _retryLocation(String action) async {
+    if (!mounted) return;
+    setState(() {
+      _status = 'Checking location...';
+      _locationStatusMessage = 'Retrying location...';
+      _locationCheckPassed = false;
+    });
+    await _continueLocationCheck(action);
   }
 
   Future<void> _doAction(String action) async {
@@ -89,14 +304,22 @@ class _CheckInScreenState extends State<CheckInScreen> {
 
     setState(() {
       _busy = true;
-      _status = 'Checking face…';
+      _status = 'Checking face...';
+      _faceCheckPassed = false;
+      _locationCheckPassed = false;
+      _lastActionSummary = null;
+      _locationStatusMessage = null;
     });
 
     try {
       final faceOk = await _verifyFace();
       if (!faceOk) return;
 
-      setState(() => _status = 'Checking location…');
+      _startLocationTimeout(action);
+      setState(() {
+        _faceCheckPassed = true;
+        _status = 'Checking location...';
+      });
       final outlet = await SupabaseRepo.outletByWorker(_selectedWorkerId!);
       if (outlet == null) {
         _toast('Outlet not found');
@@ -118,46 +341,90 @@ class _CheckInScreenState extends State<CheckInScreen> {
         return;
       }
 
-      setState(() => _status = 'Validating last state…');
-      final last = await SupabaseRepo.lastAction(_selectedWorkerId!);
-      if (last == action) {
-        _toast('Already $action. Do the opposite action first.');
-        return;
-      }
-
-      final outletId = outlet['id'] as String;
-      final nowUtc = DateTime.now().toUtc();
-      final payload = {
-        'worker_id': _selectedWorkerId!,
-        'outlet_id': outletId,
-        'action': action,
-        'timestamp_utc': nowUtc.toIso8601String(),
-        'gps_lat': pos.latitude,
-        'gps_lng': pos.longitude,
-        'gps_accuracy_m': pos.accuracy,
-        'face_score': _lastFaceScore,
-      };
-
-      setState(() => _status = 'Saving…');
-      try {
-        await SupabaseRepo.insertAttendanceRaw(payload);
-        _success('$action recorded');
-      } on AttendanceNetworkError catch (e) {
-        await OfflineQueue.addPending(payload: payload, reason: 'network:${e.message}');
-        _success('$action queued (offline)');
-      } on AttendanceServerDenied catch (e) {
-        _toast('Server denied: ${e.message}');
-      } on AttendanceAuthError catch (e) {
-        _toast('Auth error: ${e.message}');
-      } catch (e) {
-        await OfflineQueue.addPending(payload: payload, reason: 'unknown:$e');
-        _success('$action queued (offline)');
-      }
+      await _continueLocationCheck(action);
     } finally {
       if (mounted) {
         setState(() => _busy = false);
       }
+      _clearLocationTimeout();
     }
+  }
+
+  Future<void> _continueLocationCheck(String action) async {
+    final outlet = await SupabaseRepo.outletByWorker(_selectedWorkerId!);
+    if (outlet == null) {
+      _toast('Outlet not found');
+      return;
+    }
+
+    final pos = await GeoService.currentPosition();
+    final dist = GeoService.distanceMeters(
+      pos.latitude,
+      pos.longitude,
+      (outlet['latitude'] as num).toDouble(),
+      (outlet['longitude'] as num).toDouble(),
+    );
+    final radius = (outlet['radius_meters'] as num).toDouble();
+    if (dist > radius) {
+      _toast(
+        'Outside outlet geofence (${dist.toStringAsFixed(1)} m > ${radius.toStringAsFixed(0)} m)',
+      );
+      return;
+    }
+
+    _clearLocationTimeout();
+    setState(() {
+      _locationCheckPassed = true;
+      _status = 'Validating last state...';
+      _locationStatusMessage = null;
+    });
+    final last = await SupabaseRepo.lastAction(_selectedWorkerId!);
+    if (last == action) {
+      _toast('Already $action. Do the opposite action first.');
+      return;
+    }
+
+    final outletId = outlet['id'] as String;
+    final nowUtc = DateTime.now().toUtc();
+    final payload = {
+      'worker_id': _selectedWorkerId!,
+      'outlet_id': outletId,
+      'action': action,
+      'timestamp_utc': nowUtc.toIso8601String(),
+      'gps_lat': pos.latitude,
+      'gps_lng': pos.longitude,
+      'gps_accuracy_m': pos.accuracy,
+      'face_score': _lastFaceScore,
+    };
+
+    setState(() => _status = 'Saving...');
+    try {
+      await SupabaseRepo.insertAttendanceRaw(payload);
+      _success('$action recorded');
+      _setCompletionSummary(action);
+    } on AttendanceNetworkError catch (e) {
+      await OfflineQueue.addPending(payload: payload, reason: 'network:${e.message}');
+      _success('$action queued (offline)');
+      _setCompletionSummary(action);
+    } on AttendanceServerDenied catch (e) {
+      _toast('Server denied: ${e.message}');
+    } on AttendanceAuthError catch (e) {
+      _toast('Auth error: ${e.message}');
+    } catch (e) {
+      await OfflineQueue.addPending(payload: payload, reason: 'unknown:$e');
+      _success('$action queued (offline)');
+      _setCompletionSummary(action);
+    }
+  }
+
+  void _setCompletionSummary(String action) {
+    final worker = _findWorker(_selectedWorkerId);
+    final workerName = (worker?['name'] as String?) ?? 'Worker';
+    final actionLabel = action == 'IN' ? 'checked in' : 'checked out';
+    final timeText = TimeOfDay.fromDateTime(DateTime.now()).format(context);
+    setState(() {
+      _lastActionSummary = '$workerName $actionLabel at $timeText';
+    });
   }
 
   Future<bool> _verifyFace() async {
@@ -211,6 +478,302 @@ class _CheckInScreenState extends State<CheckInScreen> {
     setState(() => _status = msg);
   }
 
+  Widget _buildDropdown(ColorScheme scheme) {
+    return DropdownButtonFormField<String>(
+      value: _selectedWorkerId,
+      style: Theme.of(context).textTheme.bodyLarge,
+      decoration: InputDecoration(
+        labelText: 'Select worker',
+        hintText: 'Search worker',
+        helperText: 'Unenrolled workers will open face enrollment',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      items: _workers
+          .map(
+            (w) => DropdownMenuItem<String>(
+              value: w['id'] as String,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    fit: FlexFit.loose,
+                    child: Text(
+                      w['name'] as String? ?? 'Unnamed',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color:
+                            (w['enrolled'] == true) ? scheme.onSurface : scheme.error,
+                      ),
+                    ),
+                  ),
+                  if (w['enrolled'] != true)
+                    const SizedBox(width: 8),
+                  if (w['enrolled'] != true)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: scheme.error.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        'Unenrolled',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.error,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+      onChanged: _handleWorkerChange,
+    );
+  }
+
+  Widget _buildCameraPreview(double height) {
+    final controller = _camera;
+    final scheme = Theme.of(context).colorScheme;
+    if (controller != null && controller.value.isInitialized) {
+      final previewSize = controller.value.previewSize;
+      final width = previewSize?.height ?? height * 0.75;
+      final innerHeight = previewSize?.width ?? height;
+
+      return SizedBox(
+        height: height,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(32),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(
+                color: Colors.black,
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  child: SizedBox(
+                    width: width,
+                    height: innerHeight,
+                    child: CameraPreview(controller),
+                  ),
+                ),
+              ),
+              const FaceFrameOverlay(color: Colors.white),
+              Positioned(
+                left: 20,
+                top: 20,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.camera_front, color: Colors.white, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Live preview',
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelSmall
+                            ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget message;
+    if (_cameraError != null) {
+      message = Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.warning_amber_rounded, color: scheme.error),
+          const SizedBox(height: 8),
+          Text(
+            'Camera unavailable',
+            style: TextStyle(fontWeight: FontWeight.w600, color: scheme.error),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _cameraError!,
+            textAlign: TextAlign.center,
+            maxLines: 4,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.7)),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _cameraInitializing ? null : _initializeCamera,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry camera'),
+          ),
+        ],
+      );
+    } else if (_cameraInitializing) {
+      message = const CircularProgressIndicator();
+    } else {
+      message = Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(height: 12),
+          Text(
+            'Starting camera...',
+            style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.7)),
+          ),
+        ],
+      );
+    }
+
+    return SizedBox(
+      height: height,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: Container(
+          color: Colors.black.withValues(alpha: 0.85),
+          child: Center(child: message),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(ColorScheme scheme) {
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton(
+            onPressed: _busy ? null : () => _doAction('IN'),
+            style: FilledButton.styleFrom(
+              backgroundColor: scheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Check In'),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: FilledButton.tonal(
+            onPressed: _busy ? null : () => _doAction('OUT'),
+            style: FilledButton.styleFrom(
+              backgroundColor: scheme.primary.withValues(alpha: 0.12),
+              foregroundColor: scheme.primary,
+            ),
+            child: const Text('Check Out'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statusRow({
+    required String label,
+    required bool complete,
+    String? subtitle,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          complete ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
+          color: complete ? scheme.primary : scheme.onSurface.withValues(alpha: 0.3),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: complete ? scheme.primary : scheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+              if (subtitle != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: scheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusCard() {
+    final scheme = Theme.of(context).colorScheme;
+    final summary = _lastActionSummary ?? _status;
+    final cardColor = scheme.surfaceContainerHighest.withValues(alpha: 0.4);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _statusRow(
+            label: 'Face check complete',
+            complete: _faceCheckPassed,
+            subtitle: _faceCheckPassed && _lastFaceScore != null
+                ? 'Confidence ${(_lastFaceScore! * 100).toStringAsFixed(1)}%'
+                : null,
+          ),
+          const SizedBox(height: 16),
+          _statusRow(
+            label: 'Location verified',
+            complete: _locationCheckPassed,
+            subtitle: _locationStatusMessage,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.access_time, color: scheme.primary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      summary,
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _status,
+                      style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.7)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_ready) {
@@ -219,67 +782,43 @@ class _CheckInScreenState extends State<CheckInScreen> {
       );
     }
 
+    final scheme = Theme.of(context).colorScheme;
+    final size = MediaQuery.of(context).size;
+    final previewHeight = size.height * 0.38;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Check-in / Check-out')),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            DropdownButtonFormField<String>(
-              value: _selectedWorkerId,
-              decoration: const InputDecoration(labelText: 'Worker'),
-              items: _workers
-                  .map(
-                    (w) => DropdownMenuItem<String>(
-                      value: w['id'] as String,
-                      child: Text(w['name'] as String),
+      appBar: railRollsAppBar(context, 'Check-in / Check-out', implyLeading: false),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildDropdown(scheme),
+              const SizedBox(height: 16),
+              if (_pipelineError != null)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: scheme.error.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Text(
+                    'Embedding disabled: $_pipelineError',
+                    style: TextStyle(
+                      color: scheme.error,
+                      fontWeight: FontWeight.w600,
                     ),
-                  )
-                  .toList(),
-              onChanged: (v) => setState(() => _selectedWorkerId = v),
-            ),
-            const SizedBox(height: 12),
-            if (_pipelineError != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Embedding disabled: $_pipelineError',
-                  style: TextStyle(color: Colors.red.shade700),
-                ),
-              ),
-            AspectRatio(
-              aspectRatio: _camera!.value.aspectRatio,
-              child: CameraPreview(_camera!),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton(
-                    onPressed: _busy ? null : () => _doAction('IN'),
-                    child: const Text('Check-in'),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _busy ? null : () => _doAction('OUT'),
-                    child: const Text('Check-out'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(_status, style: const TextStyle(color: Colors.grey)),
-            if (_lastFaceScore != null)
-              Text('Face confidence: ${(_lastFaceScore! * 100).toStringAsFixed(1)}%'),
-          ],
+              if (_pipelineError != null) const SizedBox(height: 16),
+              _buildCameraPreview(previewHeight),
+              const SizedBox(height: 20),
+              _buildActionButtons(scheme),
+              const SizedBox(height: 20),
+              _buildStatusCard(),
+            ],
+          ),
         ),
       ),
     );
@@ -288,8 +827,19 @@ class _CheckInScreenState extends State<CheckInScreen> {
 
 class RepoList {
   static Future<List<Map<String, dynamic>>> workers() async {
-    final dynamic response = await sb.from('workers').select('id,name').order('name');
+    final dynamic response =
+        await sb.from('workers').select('id,name,face_profiles(id)').order('name');
     if (response is! List) return [];
-    return List<Map<String, dynamic>>.from(response);
+    return response.map<Map<String, dynamic>>((row) {
+      final item = Map<String, dynamic>.from(row as Map);
+      final faceProfiles = item['face_profiles'];
+      final enrolled = (faceProfiles is List && faceProfiles.isNotEmpty) ||
+          (faceProfiles is Map && faceProfiles.isNotEmpty);
+      return {
+        'id': item['id']?.toString(),
+        'name': item['name']?.toString() ?? 'Unnamed',
+        'enrolled': enrolled,
+      };
+    }).toList();
   }
 }
