@@ -13,24 +13,19 @@ export default async function Home() {
     redirect('/login')
   }
 
-  const { data: appUser, error: roleError } = await supabase
+  const { data: appUser, error: appUserError } = await supabase
     .from('app_users')
     .select('role')
     .eq('id', user.id)
     .single()
 
-  if (roleError || !appUser?.role) {
+  if (appUserError || !appUser) {
     redirect('/login')
   }
 
-  switch (appUser.role) {
-    case 'admin':
-      redirect('/manager')
-    case 'manager':
-      redirect('/manager')
-    case 'worker':
-      redirect('/worker')
-    default:
-      redirect('/login')
-  }
+  if (appUser.role === 'admin') redirect('/admin')
+  if (appUser.role === 'manager') redirect('/manager')
+  if (appUser.role === 'worker') redirect('/worker')
+
+  redirect('/login')
 }
