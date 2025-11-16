@@ -28,7 +28,7 @@ export default async function ManagerPage() {
   const { data: outlets } = await supabase.from('outlets').select('id,name').order('name')
   const { data: workers } = await supabase
     .from('workers')
-    .select('id,name,phone,email,outlet_id')
+    .select('id,name,phone,email,outlet_id,base_salary_per_hour,ot_rate_per_hour')
     .order('name')
 
   const { data: logs } = await supabase

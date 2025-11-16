@@ -2,6 +2,12 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
 
 type DailyRow = { work_date: string; hours_worked: number | null }
+type WorkerRow = {
+  id: string
+  name: string
+  base_salary_per_hour: number | null
+  ot_rate_per_hour: number | null
+}
 type AdjustmentRow = {
   effective_date: string
   kind: 'ot' | 'fine' | 'incentive' | 'deduction'
@@ -18,10 +24,13 @@ const formatDate = (value: string) =>
   })
 
 const formatHours = (value: number | null | undefined) =>
-  typeof value === 'number' ? `${value.toFixed(1)} hrs` : '–'
+  typeof value === 'number' ? `${value.toFixed(1)} hrs` : '—'
 
 const formatAmount = (value: number | null | undefined) =>
-  typeof value === 'number' ? `₹${value.toFixed(2)}` : '–'
+  typeof value === 'number' ? `₹${value.toFixed(2)}` : '—'
+
+const formatRate = (value: number | null | undefined) =>
+  typeof value === 'number' ? `₹${value.toFixed(2)}/hr` : 'Not set'
 
 const KIND_LABELS: Record<AdjustmentRow['kind'], string> = {
   ot: 'OT',
@@ -58,11 +67,16 @@ export default async function WorkerPage() {
     redirect('/login')
   }
 
+  const { data: appUser } = await supabase.from('app_users').select('role').eq('id', user.id).single()
+  if (!appUser || appUser.role !== 'worker') {
+    redirect('/')
+  }
+
   const { data: workerRow, error: workerError } = await supabase
     .from('workers')
-    .select('id, name')
+    .select('id, name, base_salary_per_hour, ot_rate_per_hour')
     .eq('auth_id', user.id)
-    .single()
+    .single<WorkerRow>()
 
   if (workerError || !workerRow) {
     console.error('Missing worker profile', workerError?.message)
@@ -145,6 +159,29 @@ export default async function WorkerPage() {
             Could not load some data. Please try again.
           </div>
         )}
+
+        <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <h2 className="text-lg font-semibold">My Pay Rates</h2>
+            <p className="text-sm text-gray-500">These rates are set by your manager/admin.</p>
+          </div>
+          <div className="px-5 py-5">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <div className="text-sm text-gray-500">Base rate</div>
+                <div className="mt-1 text-xl font-semibold text-gray-900">
+                  {formatRate(workerRow.base_salary_per_hour)}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm text-gray-500">OT rate</div>
+                <div className="mt-1 text-xl font-semibold text-gray-900">
+                  {formatRate(workerRow.ot_rate_per_hour)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-100 px-5 py-4">

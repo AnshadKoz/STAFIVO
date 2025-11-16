@@ -1,10 +1,18 @@
 ﻿'use client'
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, ReactNode, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import AuthGate from '../_components/AuthGate'
 
 type Outlet = { id: string; name: string }
-type Worker = { id: string; name: string; phone: string | null; email: string | null; outlet_id: string | null }
+type Worker = {
+  id: string
+  name: string
+  phone: string | null
+  email: string | null
+  outlet_id: string | null
+  base_salary_per_hour: number | null
+  ot_rate_per_hour: number | null
+}
 type AppUser = { id: string; role: 'admin' | 'manager' | 'worker'; outlet_id: string | null; name: string | null }
 type AttendanceLog = {
   id: string
@@ -27,6 +35,8 @@ type ManagerDashboardClientProps = {
   initialAttendance?: AttendanceLog[]
   hoursSummary?: HoursSummary
   userId?: string
+  dashboardTitle?: string
+  preContent?: ReactNode
 }
 
 const ADJUSTMENT_KINDS: { value: AdjustmentKind; label: string }[] = [
@@ -45,6 +55,8 @@ export default function ManagerDashboardClient({
   initialAttendance = [],
   hoursSummary,
   userId,
+  dashboardTitle = 'Rail Rolls · Manager Dashboard',
+  preContent,
 }: ManagerDashboardClientProps) {
   const [profile, setProfile] = useState<AppUser | null>(initialProfile ?? null)
   const [outlets, setOutlets] = useState<Outlet[]>(initialOutlets)
@@ -56,7 +68,14 @@ export default function ManagerDashboardClient({
   const defaultOutletId =
     initialProfile && initialProfile.role !== 'admin' ? initialProfile.outlet_id ?? '' : ''
 
-  const [form, setForm] = useState({ name: '', phone: '', email: '', outlet_id: defaultOutletId })
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    outlet_id: defaultOutletId,
+    base_salary_per_hour: '',
+    ot_rate_per_hour: '',
+  })
   const [aForm, setAForm] = useState<{ worker_id: string; action: 'IN' | 'OUT' }>({ worker_id: '', action: 'IN' })
   const [adjustmentForm, setAdjustmentForm] = useState<{
     worker_id: string
@@ -78,12 +97,23 @@ export default function ManagerDashboardClient({
 
   const isAdmin = profile?.role === 'admin'
   const managerOutletId = !isAdmin ? profile?.outlet_id ?? '' : ''
+  const [titlePrefix, titleSuffix] = (() => {
+    const parts = dashboardTitle.split('·').map(part => part.trim()).filter(Boolean)
+    if (parts.length >= 2) {
+      const [first, ...rest] = parts
+      return [first, rest.join(' · ')]
+    }
+    return [dashboardTitle, '']
+  })()
 
   const formatAttendanceTime = (timestamp: string) => {
     const hasOffset = /([zZ]|[+-]\d{2}:?\d{2})$/.test(timestamp)
     const normalized = hasOffset ? timestamp : `${timestamp}Z`
     return new Date(normalized).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
   }
+
+  const formatRate = (value: number | null | undefined) =>
+    typeof value === 'number' ? `₹${value.toFixed(2)}/hr` : 'Not set'
 
   // ---- load profile (role/outlet)
   const loadProfile = async () => {
@@ -107,7 +137,7 @@ export default function ManagerDashboardClient({
 
     const { data: w } = await supabase
       .from('workers')
-      .select('id,name,phone,email,outlet_id')
+      .select('id,name,phone,email,outlet_id,base_salary_per_hour,ot_rate_per_hour')
       .order('name')
     setWorkers(w || [])
 
@@ -193,15 +223,36 @@ export default function ManagerDashboardClient({
     const outletForInsert = isAdmin ? form.outlet_id : managerOutletId
     if (!outletForInsert) return alert('Missing outlet')
 
+    const baseRateValue =
+      form.base_salary_per_hour === '' ? null : Number(form.base_salary_per_hour)
+    const otRateValue = form.ot_rate_per_hour === '' ? null : Number(form.ot_rate_per_hour)
+
+    if (
+      (baseRateValue !== null && Number.isNaN(baseRateValue)) ||
+      (otRateValue !== null && Number.isNaN(otRateValue))
+    ) {
+      alert('Invalid base rate or OT rate')
+      return
+    }
+
     const { error } = await supabase.from('workers').insert({
       name: form.name,
       phone: form.phone || null,
       email: form.email || null,
       outlet_id: outletForInsert,
+      base_salary_per_hour: baseRateValue,
+      ot_rate_per_hour: otRateValue,
     })
     if (error) return alert(error.message)
 
-    setForm({ name: '', phone: '', email: '', outlet_id: isAdmin ? '' : managerOutletId })
+    setForm({
+      name: '',
+      phone: '',
+      email: '',
+      outlet_id: isAdmin ? '' : managerOutletId,
+      base_salary_per_hour: '',
+      ot_rate_per_hour: '',
+    })
     await loadData()
   }
 
@@ -304,7 +355,13 @@ export default function ManagerDashboardClient({
           <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold tracking-tight">
-                Rail Rolls · <span className="text-green-600">Manager Dashboard</span>
+                {titlePrefix}
+                {titleSuffix ? (
+                  <>
+                    {' · '}
+                    <span className="text-green-600">{titleSuffix}</span>
+                  </>
+                ) : null}
               </h1>
               {/* manager outlet badge (keeps role hidden) */}
               {!isAdmin && profile?.outlet_id && outlets.length > 0 && (
@@ -324,6 +381,7 @@ export default function ManagerDashboardClient({
 
         {/* Content */}
         <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
+          {preContent}
 
           {/* Hours Summary */}
           <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -344,6 +402,45 @@ export default function ManagerDashboardClient({
               </div>
             </div>
           </section>
+
+          {isAdmin && (
+            <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <h2 className="text-lg font-semibold">Worker Pay Rates</h2>
+                <p className="text-sm text-gray-500 mt-1">All workers and their configured hourly and OT rates.</p>
+              </div>
+              <div className="px-5 py-5">
+                {workers.length === 0 ? (
+                  <p className="text-sm text-gray-500">No workers yet.</p>
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Worker</th>
+                          <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Outlet</th>
+                          <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">Base rate</th>
+                          <th className="px-4 py-2 text-left text-sm font-semibold text-gray-700">OT rate</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {workers.map(w => (
+                          <tr key={w.id} className="even:bg-gray-50">
+                            <td className="px-4 py-2 text-sm">{w.name}</td>
+                            <td className="px-4 py-2 text-sm">
+                              {outlets.find(o => o.id === w.outlet_id)?.name || '-'}
+                            </td>
+                            <td className="px-4 py-2 text-sm">{formatRate(w.base_salary_per_hour)}</td>
+                            <td className="px-4 py-2 text-sm">{formatRate(w.ot_rate_per_hour)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Add worker card */}
           <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -390,6 +487,22 @@ export default function ManagerDashboardClient({
                     value={outlets.find(o => o.id === managerOutletId)?.name || 'Your outlet'}
                   />
                 )}
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="Base rate (₹/hr)"
+                  value={form.base_salary_per_hour}
+                  onChange={(e) => setForm({ ...form, base_salary_per_hour: e.target.value })}
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  placeholder="OT rate (₹/hr)"
+                  value={form.ot_rate_per_hour}
+                  onChange={(e) => setForm({ ...form, ot_rate_per_hour: e.target.value })}
+                />
               </div>
 
               <div className="mt-4">
