@@ -24,3 +24,47 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  /* Reset layout so the page height = just the printed section */
+  html[data-print-section],
+  html[data-print-section] body {
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    background: #ffffff !important;
+  }
+
+  /* Hide everything by default */
+  html[data-print-section] body * {
+    display: none !important;
+  }
+
+  /* Show only the selected section */
+  html[data-print-section='payslip-print'] #payslip-print,
+  html[data-print-section='payroll-run-print'] #payroll-run-print {
+    display: block !important;
+    position: static !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
+    break-before: avoid-page !important;
+    break-after: avoid-page !important;
+  }
+
+  /* Restore children display */
+  html[data-print-section='payslip-print'] #payslip-print *,
+  html[data-print-section='payroll-run-print'] #payroll-run-print * {
+    display: revert !important;
+  }
+
+  @page {
+    margin: 12mm !important;
+  }
+}
