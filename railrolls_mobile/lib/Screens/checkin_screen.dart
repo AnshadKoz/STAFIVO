@@ -34,6 +34,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   String? _pipelineError;
   bool _cameraInitializing = false;
   String? _cameraError;
+  String? _bootstrapError;
 
   String? _selectedWorkerId;
   List<Map<String, dynamic>> _workers = [];
@@ -62,21 +63,41 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   }
 
   Future<void> _initAll() async {
-    final rows = await RepoList.workers();
-    String? pipelineError;
-    try {
-      await _embedder.load();
-    } catch (e) {
-      pipelineError = e.toString();
+    if (mounted) {
+      setState(() {
+        _ready = false;
+        _bootstrapError = null;
+      });
+    } else {
+      _ready = false;
+      _bootstrapError = null;
     }
 
-    await _initializeCamera();
-    if (!mounted) return;
-    setState(() {
-      _workers = rows;
-      _pipelineError = pipelineError;
-      _ready = true;
-    });
+    try {
+      final rows = await RepoList.workers();
+      String? pipelineError;
+      try {
+        await _embedder.load();
+      } catch (e) {
+        pipelineError = e.toString();
+      }
+
+      await _initializeCamera();
+      if (!mounted) return;
+      setState(() {
+        _workers = rows;
+        _pipelineError = pipelineError;
+        _bootstrapError = null;
+        _ready = true;
+      });
+    } catch (e) {
+      debugPrint('Check-in bootstrap failed: $e');
+      if (!mounted) return;
+      setState(() {
+        _bootstrapError = e.toString();
+        _ready = true;
+      });
+    }
   }
 
   Future<CameraController> _createCameraController() async {
@@ -677,6 +698,57 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     );
   }
 
+  Widget _buildBootstrapError(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final message = _bootstrapError ?? 'Unknown error';
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 56, color: scheme.error),
+              const SizedBox(height: 16),
+              Text(
+                'Unable to load workers',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Check your connection and Supabase permissions, then tap Retry.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.7)),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.85)),
+                ),
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _initAll,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildStatusCard() {
     final scheme = Theme.of(context).colorScheme;
     final summary = _lastActionSummary ?? _status;
@@ -741,6 +813,10 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
       );
     }
 
+    if (_bootstrapError != null) {
+      return _buildBootstrapError(context);
+    }
+
     final scheme = Theme.of(context).colorScheme;
     final size = MediaQuery.of(context).size;
     final previewHeight = size.height * 0.38;
@@ -786,18 +862,12 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
 
 class RepoList {
   static Future<List<Map<String, dynamic>>> workers() async {
-    final dynamic response =
-        await sb.from('workers').select('id,name,face_profiles(id)').order('name');
-    if (response is! List) return [];
-    return response.map<Map<String, dynamic>>((row) {
-      final item = Map<String, dynamic>.from(row as Map);
-      final faceProfiles = item['face_profiles'];
-      final enrolled = (faceProfiles is List && faceProfiles.isNotEmpty) ||
-          (faceProfiles is Map && faceProfiles.isNotEmpty);
+    final rows = await SupabaseRepo.workerDropdown();
+    return rows.map<Map<String, dynamic>>((worker) {
       return {
-        'id': item['id']?.toString(),
-        'name': item['name']?.toString() ?? 'Unnamed',
-        'enrolled': enrolled,
+        'id': worker.id,
+        'name': worker.name,
+        'enrolled': worker.enrolled,
       };
     }).toList();
   }

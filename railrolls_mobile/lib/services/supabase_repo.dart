@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:developer' as developer;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -50,6 +51,43 @@ class SupabaseRepo {
   static Future<List<Map<String, dynamic>>> allWorkers() async {
     final rows = await sb.from('workers').select('id,name').order('name');
     return _castList(rows);
+  }
+
+  static Future<List<WorkerDropdown>> workerDropdown() async {
+    try {
+      final response = await sb.rpc('worker_dropdown_data').select();
+      final rows = _castList(response);
+      return rows.map((row) => WorkerDropdown.fromRow(row)).toList();
+    } on PostgrestException catch (e, stack) {
+      developer.log(
+        'worker_dropdown_data RPC failed: ${e.message}',
+        name: 'SupabaseRepo',
+        error: e,
+        stackTrace: stack,
+      );
+      return [];
+    } catch (e, stack) {
+      developer.log(
+        'worker_dropdown_data RPC unexpected error: $e',
+        name: 'SupabaseRepo',
+        error: e,
+        stackTrace: stack,
+      );
+      return [];
+    }
+  }
+
+  static Future<Set<String>> enrolledWorkerIds() async {
+    final rows = await sb.from('face_profiles').select('worker_id');
+    final list = _castList(rows);
+    final ids = <String>{};
+    for (final row in list) {
+      final id = row['worker_id'];
+      if (id != null) {
+        ids.add(id.toString());
+      }
+    }
+    return ids;
   }
 
   /// Returns {id, name, latitude, longitude, radius_meters}
@@ -179,4 +217,24 @@ class AttendanceAuthError implements Exception {
   final String message;
   @override
   String toString() => 'AttendanceAuthError($message)';
+}
+
+class WorkerDropdown {
+  WorkerDropdown({
+    required this.id,
+    required this.name,
+    required this.enrolled,
+  });
+
+  final String id;
+  final String name;
+  final bool enrolled;
+
+  factory WorkerDropdown.fromRow(Map<String, dynamic> row) {
+    return WorkerDropdown(
+      id: row['id']?.toString() ?? '',
+      name: row['name']?.toString() ?? 'Unnamed',
+      enrolled: row['enrolled'] == true,
+    );
+  }
 }

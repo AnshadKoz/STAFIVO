@@ -1,6 +1,6 @@
-'use client'
+﻿'use client'
 
-import { FormEvent, ReactNode, useActionState, useEffect, useRef, useState } from 'react'
+import { FormEvent, ReactNode, useActionState, useEffect, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -13,12 +13,11 @@ import {
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import Modal from '@/components/ui/Modal'
-import { useToast } from '@/app/_components/ToastProvider'
 import AuthGate from '../_components/AuthGate'
 import {
   createWorkerRequestAction,
   markNotificationReadAction,
-  respondToFineAppealAction,
+  resolveFineAppealAction,
   logAttendanceAction,
   type ManagerActionResult,
 } from './managerActions'
@@ -49,7 +48,6 @@ type Worker = {
   outlet_id: string | null
   base_salary_per_hour: number | null
   ot_rate_per_hour: number | null
-  outletName?: string | null
 }
 
 type AppUser = {
@@ -102,7 +100,6 @@ type FineAppealRow = {
   created_at: string
   manager_response: string | null
   worker_name?: string | null
-  worker?: { id: string; name: string | null } | null
   amount?: number | null
 }
 
@@ -175,7 +172,6 @@ type ManagerDashboardClientProps = {
   outletAnalytics?: OutletAnalyticsPoint[] | null
   workerAnalytics?: WorkerAnalyticsPoint[] | null
   workerAnalyticsWeekly?: WorkerAnalyticsPoint[] | null
-  managerOutlet?: { id: string; name: string | null } | null
   adminPayrollPanel?: ReactNode
   dashboardTitle?: string
 }
@@ -215,7 +211,6 @@ export default function ManagerDashboardClient({
   outletAnalytics,
   workerAnalytics,
   workerAnalyticsWeekly,
-  managerOutlet = null,
   adminPayrollPanel,
   dashboardTitle,
 }: ManagerDashboardClientProps) {
@@ -232,10 +227,8 @@ export default function ManagerDashboardClient({
   const resolvedOutletAnalytics = outletAnalytics ?? []
   const resolvedWorkerAnalytics = workerAnalytics ?? []
   const resolvedWorkerAnalyticsWeekly = workerAnalyticsWeekly ?? []
-  const resolvedManagerOutlet = managerOutlet ?? null
 
   const router = useRouter()
-  const { showToast } = useToast()
   const [profile, setProfile] = useState<AppUser | null>(initialProfile)
   const [outlets, setOutlets] = useState<Outlet[]>(resolvedInitialOutlets)
   const [workers, setWorkers] = useState<Worker[]>(resolvedInitialWorkers)
@@ -264,7 +257,7 @@ export default function ManagerDashboardClient({
     name: '',
     phone: '',
     email: '',
-    outlet_id: resolvedManagerOutlet?.id ?? initialProfile?.outlet_id ?? '',
+    outlet_id: initialProfile?.outlet_id ?? '',
     base_salary_per_hour: '',
     ot_rate_per_hour: '',
   })
@@ -304,68 +297,22 @@ export default function ManagerDashboardClient({
   })
   const [managerMode, setManagerMode] = useState<'existing' | 'new'>('existing')
   const [requestComments, setRequestComments] = useState<Record<string, string>>({})
-  const [currentAppeal, setCurrentAppeal] = useState<FineAppealRow | null>(null)
-  const [appealResponse, setAppealResponse] = useState('')
-  const [appealDecision, setAppealDecision] = useState<'approve' | 'reject'>('approve')
-  const appealActionInitRef = useRef(true)
-  const lastAppealMetaRef = useRef<{ id: string | null; decision: 'approve' | 'reject' }>({
-    id: null,
-    decision: 'approve',
-  })
+  const [managerResponse, setManagerResponse] = useState<Record<string, string>>({})
 
   const [requestState, workerRequestAction] = useActionState(createWorkerRequestAction, actionStateInit)
   const [outletState, outletAction] = useActionState(saveOutletAction, adminActionInit)
   const [deleteOutletState, deleteOutletFormAction] = useActionState(deleteOutletAction, adminActionInit)
   const [createManagerState, managerCreateAction] = useActionState(createManagerAction, adminActionInit)
   const [updateManagerState, managerUpdateAction] = useActionState(updateManagerAction, adminActionInit)
-  const [appealActionState, respondToAppealAction, appealActionPending] = useActionState(
-    respondToFineAppealAction,
-    actionStateInit
-  )
-  const [, approveRequestAction] = useActionState(approveWorkerRequestAction, actionStateInit)
-  const [, rejectRequestAction] = useActionState(rejectWorkerRequestAction, actionStateInit)
-  const [, markNotificationAction] = useActionState(markNotificationReadAction, actionStateInit)
 
   const isAdmin = profile?.role === 'admin'
   const attendanceServerAction = isAdmin ? logAdminAttendanceAction : logAttendanceAction
   const [attendanceState, attendanceActionDispatch] = useActionState(attendanceServerAction, actionStateInit)
-  const managerOutletId = resolvedManagerOutlet?.id ?? (!isAdmin ? profile?.outlet_id ?? '' : '')
-  const managerOutletName =
-    resolvedManagerOutlet?.name ??
-    (managerOutletId
-      ? outlets.find(outlet => outlet.id === managerOutletId)?.name ?? 'Outlet not set'
-      : isAdmin
-        ? 'All outlets'
-        : 'Outlet not set')
-
-  const resolveOutletName = (workerOutletId: string | null) => {
-    if (workerOutletId && workerOutletId === resolvedManagerOutlet?.id && resolvedManagerOutlet?.name) {
-      return resolvedManagerOutlet.name
-    }
-    const outletName = outlets.find(outlet => outlet.id === workerOutletId)?.name
-    if (outletName) return outletName
-    return managerOutletName
-  }
+  const managerOutletId = !isAdmin ? profile?.outlet_id ?? '' : ''
+  const managerOutletName = managerOutletId
+    ? outlets.find(outlet => outlet.id === managerOutletId)?.name ?? 'Outlet not set'
+    : 'All outlets'
   const title = dashboardTitle ?? (isAdmin ? 'Rail Rolls · Admin Dashboard' : 'Rail Rolls · Manager Dashboard')
-
-  const openAppealModal = (appeal: FineAppealRow) => {
-    setCurrentAppeal(appeal)
-    setAppealResponse(appeal.manager_response ?? '')
-    setAppealDecision('approve')
-    lastAppealMetaRef.current = { id: appeal.id, decision: 'approve' }
-  }
-
-  const closeAppealModal = () => {
-    setCurrentAppeal(null)
-    setAppealResponse('')
-    setAppealDecision('approve')
-    lastAppealMetaRef.current = { id: null, decision: 'approve' }
-  }
-
-  const handleDecisionSelect = (value: 'approve' | 'reject') => {
-    setAppealDecision(value)
-    lastAppealMetaRef.current = { id: currentAppeal?.id ?? null, decision: value }
-  }
 
   useEffect(() => {
     setProfile(initialProfile)
@@ -390,35 +337,6 @@ export default function ManagerDashboardClient({
   useEffect(() => {
     setRequests(workerRequests ?? [])
   }, [workerRequests])
-
-  useEffect(() => {
-    if (appealActionInitRef.current) {
-      appealActionInitRef.current = false
-      return
-    }
-
-    if (appealActionState.status === 'success') {
-      const handledId = lastAppealMetaRef.current.id
-      if (handledId) {
-        setAppeals(prev => prev.filter(appeal => appeal.id !== handledId))
-      }
-      showToast({
-        type: 'success',
-        title: 'Appeal updated',
-        description: 'The worker has been notified.',
-      })
-      setCurrentAppeal(null)
-      setAppealResponse('')
-      setAppealDecision('approve')
-      lastAppealMetaRef.current = { id: null, decision: 'approve' }
-    } else if (appealActionState.status === 'error') {
-      showToast({
-        type: 'error',
-        title: 'Unable to update appeal',
-        description: appealActionState.message ?? 'Please try again in a moment.',
-      })
-    }
-  }, [appealActionState, showToast])
 
   useEffect(() => {
     setNotificationRows(notifications ?? [])
@@ -447,29 +365,6 @@ export default function ManagerDashboardClient({
   useEffect(() => {
     setWorkerTrendsWeekly(workerAnalyticsWeekly ?? [])
   }, [workerAnalyticsWeekly])
-
-  useEffect(() => {
-    if (!isAdmin) {
-      setForm(prev => ({ ...prev, outlet_id: managerOutletId }))
-    }
-  }, [isAdmin, managerOutletId])
-
-  useEffect(() => {
-    if (!isAdmin && requestState.status === 'success' && requestState.message) {
-      setForm({
-        name: '',
-        phone: '',
-        email: '',
-        outlet_id: managerOutletId,
-        base_salary_per_hour: '',
-        ot_rate_per_hour: '',
-      })
-      setWorkerMessage(requestState.message)
-      router.refresh()
-    } else if (!isAdmin && requestState.status === 'error' && requestState.message) {
-      setWorkerMessage(requestState.message)
-    }
-  }, [isAdmin, requestState.status, requestState.message, managerOutletId, router])
 
   useEffect(() => {
     if (attendanceState.message) {
@@ -515,7 +410,6 @@ export default function ManagerDashboardClient({
   }
 
   const addWorker = async () => {
-    if (!isAdmin) return
     if (!form.name.trim()) {
       setWorkerMessage('Name is required')
       return
@@ -523,27 +417,38 @@ export default function ManagerDashboardClient({
     const baseRateValue = form.base_salary_per_hour === '' ? null : Number(form.base_salary_per_hour)
     const otRateValue = form.ot_rate_per_hour === '' ? null : Number(form.ot_rate_per_hour)
 
-    const { data: creatorData } = await supabase.auth.getUser()
-    const creator = creatorData.user?.id ?? userId ?? null
+    if (!isAdmin) {
+      const fd = new FormData()
+      fd.append('name', form.name.trim())
+      if (form.phone.trim()) fd.append('phone', form.phone.trim())
+      if (form.email.trim()) fd.append('email', form.email.trim())
+      if (form.base_salary_per_hour) fd.append('base_salary_per_hour', form.base_salary_per_hour)
+      if (form.ot_rate_per_hour) fd.append('ot_rate_per_hour', form.ot_rate_per_hour)
+      await workerRequestAction(fd)
+      setWorkerMessage('Request sent to admin for approval.')
+    } else {
+      const { data: creatorData } = await supabase.auth.getUser()
+      const creator = creatorData.user?.id ?? userId ?? null
 
-    const { error } = await supabase.from('workers').insert([
-      {
-        name: form.name.trim(),
-        phone: form.phone.trim() || null,
-        email: form.email.trim() || null,
-        outlet_id: form.outlet_id || null,
-        base_salary_per_hour: baseRateValue,
-        ot_rate_per_hour: otRateValue,
-        created_by: creator,
-      },
-    ])
+      const { error } = await supabase.from('workers').insert([
+        {
+          name: form.name.trim(),
+          phone: form.phone.trim() || null,
+          email: form.email.trim() || null,
+          outlet_id: form.outlet_id || null,
+          base_salary_per_hour: baseRateValue,
+          ot_rate_per_hour: otRateValue,
+          created_by: creator,
+        },
+      ])
 
-    if (error) {
-      setWorkerMessage(error.message)
-      return
+      if (error) {
+        setWorkerMessage(error.message)
+        return
+      }
+
+      setWorkerMessage('Worker saved')
     }
-
-    setWorkerMessage('Worker saved')
 
     setForm({
       name: '',
@@ -553,8 +458,10 @@ export default function ManagerDashboardClient({
       base_salary_per_hour: '',
       ot_rate_per_hour: '',
     })
-    await loadData()
-    router.refresh()
+    if (isAdmin) {
+      await loadData()
+      router.refresh()
+    }
   }
 
   const handleAdjustmentSubmit = async (event: FormEvent) => {
@@ -666,127 +573,71 @@ export default function ManagerDashboardClient({
         <div className="space-y-6">
           <div>
             <h4 className="text-sm font-semibold tracking-wide text-emerald-600">Create worker</h4>
-            {isAdmin ? (
-              <>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  <input
-                    value={form.name}
-                    onChange={e => setForm({ ...form, name: e.target.value })}
-                    placeholder="Full name"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <select
-                    value={form.outlet_id}
-                    onChange={e => setForm({ ...form, outlet_id: e.target.value })}
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  >
-                    <option value="">Select outlet</option>
-                    {outlets.map(outlet => (
-                      <option key={outlet.id} value={outlet.id}>
-                        {outlet.name}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={form.phone}
-                    onChange={e => setForm({ ...form, phone: e.target.value })}
-                    placeholder="Phone"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <input
-                    value={form.email}
-                    onChange={e => setForm({ ...form, email: e.target.value })}
-                    placeholder="Email"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={form.base_salary_per_hour}
-                    onChange={e => setForm({ ...form, base_salary_per_hour: e.target.value })}
-                    placeholder="Base rate (₹/hr)"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={form.ot_rate_per_hour}
-                    onChange={e => setForm({ ...form, ot_rate_per_hour: e.target.value })}
-                    placeholder="OT rate (₹/hr)"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <input
+                value={form.name}
+                onChange={e => setForm({ ...form, name: e.target.value })}
+                placeholder="Full name"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              {isAdmin ? (
+                <select
+                  value={form.outlet_id}
+                  onChange={e => setForm({ ...form, outlet_id: e.target.value })}
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                >
+                  <option value="">Select outlet</option>
+                  {outlets.map(outlet => (
+                    <option key={outlet.id} value={outlet.id}>
+                      {outlet.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Outlet</p>
+                  <p className="text-sm font-semibold text-gray-900">{managerOutletName}</p>
                 </div>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={addWorker}
-                    className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-700"
-                  >
-                    Create worker
-                  </button>
-                  {workerMessage ? <span className="text-sm text-gray-600">{workerMessage}</span> : null}
-                </div>
-              </>
-            ) : (
-              <form action={workerRequestAction} className="mt-3 space-y-3">
-                <div className="grid gap-3 md:grid-cols-2">
-                  <input
-                    name="name"
-                    value={form.name}
-                    onChange={e => setForm({ ...form, name: e.target.value })}
-                    placeholder="Full name"
-                    required
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Outlet</p>
-                    <p className="text-sm font-semibold text-gray-900">{managerOutletName}</p>
-                  </div>
-                  <input
-                    name="phone"
-                    value={form.phone}
-                    onChange={e => setForm({ ...form, phone: e.target.value })}
-                    placeholder="Phone"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <input
-                    name="email"
-                    value={form.email}
-                    onChange={e => setForm({ ...form, email: e.target.value })}
-                    placeholder="Email"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="base_salary_per_hour"
-                    value={form.base_salary_per_hour}
-                    onChange={e => setForm({ ...form, base_salary_per_hour: e.target.value })}
-                    placeholder="Base rate (₹/hr)"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="ot_rate_per_hour"
-                    value={form.ot_rate_per_hour}
-                    onChange={e => setForm({ ...form, ot_rate_per_hour: e.target.value })}
-                    placeholder="OT rate (₹/hr)"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                </div>
-                <input type="hidden" name="outlet_id" value={managerOutletId} />
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="submit"
-                    className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-700"
-                  >
-                    Send approval request
-                  </button>
-                  {workerMessage ? <span className="text-sm text-gray-600">{workerMessage}</span> : null}
-                </div>
-              </form>
-            )}
+              )}
+              <input
+                value={form.phone}
+                onChange={e => setForm({ ...form, phone: e.target.value })}
+                placeholder="Phone"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <input
+                value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+                placeholder="Email"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <input
+                type="number"
+                step="0.01"
+                value={form.base_salary_per_hour}
+                onChange={e => setForm({ ...form, base_salary_per_hour: e.target.value })}
+                placeholder="Base rate (₹/hr)"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <input
+                type="number"
+                step="0.01"
+                value={form.ot_rate_per_hour}
+                onChange={e => setForm({ ...form, ot_rate_per_hour: e.target.value })}
+                placeholder="OT rate (₹/hr)"
+                className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={addWorker}
+                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-700"
+              >
+                {isAdmin ? 'Create worker' : 'Send approval request'}
+              </button>
+              {workerMessage ? <span className="text-sm text-gray-600">{workerMessage}</span> : null}
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -806,7 +657,7 @@ export default function ManagerDashboardClient({
                   <tr key={worker.id} className="border-t border-gray-100">
                     <td className="px-3 py-2 font-medium text-gray-900">{worker.name}</td>
                     <td className="px-3 py-2 text-gray-600">
-                      {worker.outletName ?? resolveOutletName(worker.outlet_id)}
+                      {outlets.find(o => o.id === worker.outlet_id)?.name ?? '—'}
                     </td>
                     <td className="px-3 py-2 text-gray-600">{worker.phone ?? '—'}</td>
                     <td className="px-3 py-2 text-gray-600">{worker.email ?? '—'}</td>
@@ -985,11 +836,49 @@ export default function ManagerDashboardClient({
         stat: pendingRequests.length.toString(),
         detail: 'Pending approvals',
         content: (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Submit new teammates through the “Add worker” form above. Every pending request shows up here until admin
-              responds.
-            </p>
+          <div className="space-y-5">
+            <form action={workerRequestAction} className="space-y-3">
+              <div className="grid gap-3 md:grid-cols-2">
+                <input
+                  name="name"
+                  placeholder="Worker name"
+                  required
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <input
+                  name="phone"
+                  placeholder="Phone"
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <input
+                  type="email"
+                  name="email"
+                  placeholder="Email"
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  name="base_salary_per_hour"
+                  placeholder="Base rate (₹/hr)"
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  name="ot_rate_per_hour"
+                  placeholder="OT rate (₹/hr)"
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+              <button
+                type="submit"
+                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-700"
+              >
+                Submit request
+              </button>
+              {requestState.message ? <p className="text-sm text-gray-600">{requestState.message}</p> : null}
+            </form>
             <div className="space-y-3">
               {requests.length === 0 ? (
                 <p className="text-sm text-gray-500">No requests submitted yet.</p>
@@ -1036,22 +925,40 @@ export default function ManagerDashboardClient({
               <p className="text-sm text-gray-500">No appeals assigned to you.</p>
             ) : (
               appeals.map(appeal => (
-                <div key={appeal.id} className="rounded-2xl border border-gray-100 px-4 py-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{appeal.worker_name ?? 'Worker'}</p>
-                      <p className="text-xs text-gray-500">{formatDateTime(appeal.created_at)}</p>
-                      <p className="mt-2 text-sm text-gray-600">Reason: {appeal.reason}</p>
-                    </div>
+                <form
+                  key={appeal.id}
+                  action={resolveFineAppealAction}
+                  className="rounded-2xl border border-gray-100 px-4 py-4 shadow-sm"
+                >
+                  <input type="hidden" name="appeal_id" value={appeal.id} />
+                  <p className="text-sm font-semibold text-gray-900">{appeal.worker_name ?? 'Worker'}</p>
+                  <p className="text-xs text-gray-500">Reason: {appeal.reason}</p>
+                  <textarea
+                    name="manager_response"
+                    value={managerResponse[appeal.id] ?? ''}
+                    onChange={e => setManagerResponse(prev => ({ ...prev, [appeal.id]: e.target.value }))}
+                    placeholder="Response to worker"
+                    className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  />
+                  <div className="mt-3 flex gap-3">
                     <button
-                      type="button"
-                      onClick={() => openAppealModal(appeal)}
-                      className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                      type="submit"
+                      name="status"
+                      value="approved"
+                      className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700"
                     >
-                      Review
+                      Approve
+                    </button>
+                    <button
+                      type="submit"
+                      name="status"
+                      value="rejected"
+                      className="rounded-xl bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 shadow hover:bg-red-200"
+                    >
+                      Reject
                     </button>
                   </div>
-                </div>
+                </form>
               ))
             )}
           </div>
@@ -1388,14 +1295,14 @@ export default function ManagerDashboardClient({
                   <div className="mt-3 flex gap-3">
                     <button
                       type="submit"
-                      formAction={approveRequestAction}
+                      formAction={approveWorkerRequestAction}
                       className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700"
                     >
                       Approve
                     </button>
                     <button
                       type="submit"
-                      formAction={rejectRequestAction}
+                      formAction={rejectWorkerRequestAction}
                       className="rounded-xl bg-red-100 px-4 py-2 text-sm font-semibold text-red-700 shadow hover:bg-red-200"
                     >
                       Reject
@@ -1598,57 +1505,6 @@ export default function ManagerDashboardClient({
         </Modal>
 
         <Modal
-          open={Boolean(currentAppeal)}
-          onClose={closeAppealModal}
-          title={currentAppeal ? currentAppeal.worker_name ?? 'Worker' : 'Review appeal'}
-          description={currentAppeal ? `Filed ${formatDateTime(currentAppeal.created_at)}` : undefined}
-          wide={false}
-        >
-          {currentAppeal ? (
-            <form action={respondToAppealAction} className="space-y-4">
-              <input type="hidden" name="appeal_id" value={currentAppeal.id} />
-              <input type="hidden" name="decision" value={appealDecision} />
-              <div className="rounded-2xl bg-emerald-50/80 px-4 py-3 text-sm text-gray-600">
-                <p className="font-semibold text-gray-900">Worker reason</p>
-                <p className="mt-1">{currentAppeal.reason}</p>
-              </div>
-              <textarea
-                name="response"
-                value={appealResponse}
-                onChange={e => setAppealResponse(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                placeholder="Optional response to worker"
-              />
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <button
-                  type="submit"
-                  onClick={() => handleDecisionSelect('approve')}
-                  disabled={appealActionPending}
-                  className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow ${
-                    appealActionPending ? 'cursor-not-allowed bg-emerald-400 opacity-80' : 'bg-emerald-600 hover:bg-emerald-700'
-                  }`}
-                >
-                  {appealActionPending && appealDecision === 'approve' ? 'Approving...' : 'Approve'}
-                </button>
-                <button
-                  type="submit"
-                  onClick={() => handleDecisionSelect('reject')}
-                  disabled={appealActionPending}
-                  className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-red-700 shadow ${
-                    appealActionPending ? 'cursor-not-allowed bg-red-100 opacity-80' : 'bg-red-50 hover:bg-red-100'
-                  }`}
-                >
-                  {appealActionPending && appealDecision === 'reject' ? 'Rejecting...' : 'Reject'}
-                </button>
-              </div>
-              {appealActionState.status === 'error' && appealActionState.message ? (
-                <p className="text-xs text-red-500">{appealActionState.message}</p>
-              ) : null}
-            </form>
-          ) : null}
-        </Modal>
-
-        <Modal
           open={documentsModal.open}
           onClose={() => setDocumentsModal({ open: false, workerId: '' })}
           title="Worker documents"
@@ -1718,7 +1574,7 @@ export default function ManagerDashboardClient({
                       ) : null}
                       <p className="text-[11px] text-gray-500">{formatDateTime(notification.created_at)}</p>
                       {!notification.is_read ? (
-                        <form action={markNotificationAction} className="mt-2">
+                        <form action={markNotificationReadAction} className="mt-2">
                           <input type="hidden" name="notification_id" value={notification.id} />
                           <button type="submit" className="text-xs font-semibold text-emerald-600">
                             Mark as read
@@ -1736,3 +1592,5 @@ export default function ManagerDashboardClient({
     </AuthGate>
   )
 }
+
+

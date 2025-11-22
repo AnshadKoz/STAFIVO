@@ -25,10 +25,24 @@ export default async function ManagerPage() {
     .eq('id', user.id)
     .single()
 
+  type ManagerRecordRow = {
+    id: string
+    outlet_id: string | null
+    is_active: boolean
+    outlet?: { id: string; name: string | null } | null
+  }
+
+  const { data: managerRecordRaw } = await supabase
+    .from('managers')
+    .select('id,outlet_id,is_active,outlet:outlets(id,name)')
+    .eq('app_user_id', user.id)
+    .maybeSingle()
+  const managerRecord = (managerRecordRaw as ManagerRecordRow | null) ?? null
+
   const { data: outlets } = await supabase.from('outlets').select('id,name').order('name')
   const { data: workers } = await supabase
     .from('workers')
-    .select('id,name,phone,email,outlet_id,base_salary_per_hour,ot_rate_per_hour')
+    .select('id,name,phone,email,outlet_id,base_salary_per_hour,ot_rate_per_hour,outlet:outlets(name)')
     .order('name')
 
   const { data: logs } = await supabase
@@ -37,7 +51,22 @@ export default async function ManagerPage() {
     .order('timestamp_utc', { ascending: false })
     .limit(20)
 
-  const safeWorkers = workers ?? []
+  type WorkerRow = {
+    id: string
+    name: string
+    phone: string | null
+    email: string | null
+    outlet_id: string | null
+    base_salary_per_hour: number | null
+    ot_rate_per_hour: number | null
+    outlet?: { name: string | null } | null
+  }
+
+  const safeWorkers =
+    (workers as WorkerRow[] | null)?.map(worker => ({
+      ...worker,
+      outletName: worker.outlet?.name ?? 'Outlet not set',
+    })) ?? []
   const safeOutlets = outlets ?? []
   type AttendanceLogRow = {
     id: string
@@ -87,14 +116,149 @@ export default async function ManagerPage() {
       0
     )
 
+  const { data: notifications } = await supabase
+    .from('notifications')
+    .select('id,type,title,body,data,is_read,created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  const { data: myRequests } = await supabase
+    .from('worker_onboarding_requests')
+    .select(
+      'id,name,phone,email,base_salary_per_hour,ot_rate_per_hour,outlet_id,status,requested_by,admin_comment,created_at'
+    )
+    .eq('requested_by', user.id)
+    .order('created_at', { ascending: false })
+
+  type AppealRow = {
+    id: string
+    worker_id: string
+    adjustment_id: string
+    reason: string
+    status: 'pending' | 'approved' | 'rejected'
+    created_at: string
+    manager_response: string | null
+    worker: { id: string; name: string | null } | null
+  }
+
+  const { data: managerAppeals } = await supabase
+    .from('fine_appeals')
+    .select(
+      `
+        id,
+        worker_id,
+        adjustment_id,
+        reason,
+        status,
+        created_at,
+        manager_response,
+        worker:workers (
+          id,
+          name
+        )
+      `
+    )
+    .eq('manager_id', user.id)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: true })
+  const appealsWithWorkers =
+    (managerAppeals as AppealRow[] | null)?.map(appeal => ({
+      ...appeal,
+      worker_name: appeal.worker?.name ?? null,
+    })) ?? []
+
+  const trendStart = new Date()
+  trendStart.setDate(trendStart.getDate() - 30)
+  const trendStartStr = trendStart.toISOString().slice(0, 10)
+  const trendWeekStart = new Date()
+  trendWeekStart.setDate(trendWeekStart.getDate() - 6)
+  const trendWeekStartStr = trendWeekStart.toISOString().slice(0, 10)
+
+  const { data: workerHoursRows } = await supabase
+    .from('worker_daily_hours')
+    .select('worker_id,hours_worked')
+    .gte('work_date', trendStartStr)
+
+  const { data: workerOtRows } = await supabase
+    .from('worker_adjustments')
+    .select('worker_id,hours')
+    .eq('kind', 'ot')
+    .gte('effective_date', trendStartStr)
+
+  const workerHourTotals = new Map<string, number>()
+  ;(workerHoursRows ?? []).forEach(row => {
+    if (!row.worker_id) return
+    workerHourTotals.set(row.worker_id, (workerHourTotals.get(row.worker_id) ?? 0) + (row.hours_worked ?? 0))
+  })
+
+  const workerOtTotals = new Map<string, number>()
+  ;(workerOtRows ?? []).forEach(row => {
+    if (!row.worker_id) return
+    workerOtTotals.set(row.worker_id, (workerOtTotals.get(row.worker_id) ?? 0) + (row.hours ?? 0))
+  })
+
+  const { data: workerHoursWeekRows } = await supabase
+    .from('worker_daily_hours')
+    .select('worker_id,hours_worked')
+    .gte('work_date', trendWeekStartStr)
+
+  const { data: workerOtWeekRows } = await supabase
+    .from('worker_adjustments')
+    .select('worker_id,hours')
+    .eq('kind', 'ot')
+    .gte('effective_date', trendWeekStartStr)
+
+  const workerHourTotalsWeek = new Map<string, number>()
+  ;(workerHoursWeekRows ?? []).forEach(row => {
+    if (!row.worker_id) return
+    workerHourTotalsWeek.set(row.worker_id, (workerHourTotalsWeek.get(row.worker_id) ?? 0) + (row.hours_worked ?? 0))
+  })
+
+  const workerOtTotalsWeek = new Map<string, number>()
+  ;(workerOtWeekRows ?? []).forEach(row => {
+    if (!row.worker_id) return
+    workerOtTotalsWeek.set(row.worker_id, (workerOtTotalsWeek.get(row.worker_id) ?? 0) + (row.hours ?? 0))
+  })
+
+  const workerAnalytics =
+    safeWorkers.map(worker => ({
+      worker_id: worker.id,
+      worker_name: worker.name,
+      total_hours: Number(workerHourTotals.get(worker.id) ?? 0),
+      ot_hours: Number(workerOtTotals.get(worker.id) ?? 0),
+    })) ?? []
+
+  const workerAnalyticsWeekly =
+    safeWorkers.map(worker => ({
+      worker_id: worker.id,
+      worker_name: worker.name,
+      total_hours: Number(workerHourTotalsWeek.get(worker.id) ?? 0),
+      ot_hours: Number(workerOtTotalsWeek.get(worker.id) ?? 0),
+    })) ?? []
+
+  const profileWithOutlet = profile
+    ? { ...profile, outlet_id: profile.outlet_id ?? managerRecord?.outlet_id ?? null }
+    : null
+
+  const managerOutlet = managerRecord?.outlet_id
+    ? { id: managerRecord.outlet_id, name: managerRecord.outlet?.name ?? null }
+    : null
+
   return (
     <ManagerDashboardClient
-      initialProfile={profile ?? null}
+      initialProfile={profileWithOutlet ?? null}
       initialOutlets={safeOutlets}
       initialWorkers={safeWorkers}
       initialAttendance={attendance}
       hoursSummary={{ weeklyHours, monthlyHours }}
       userId={user.id}
+      workerRequests={myRequests ?? []}
+      notifications={notifications ?? []}
+      fineAppeals={appealsWithWorkers}
+      workerAnalytics={workerAnalytics}
+      workerAnalyticsWeekly={workerAnalyticsWeekly}
+      managerOutlet={managerOutlet}
     />
   )
 }

@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
@@ -12,12 +12,10 @@ export default function LoginPage() {
   const signIn = async (e?: React.FormEvent) => {
     e?.preventDefault()
     setLoading(true)
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
-
-    console.log('signIn result', { data, error })
 
     setLoading(false)
     if (error) {
@@ -29,45 +27,39 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        {/* Brand / Title */}
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-extrabold tracking-tight text-gray-900">
-            Rail Rolls <span className="text-green-600">Console</span>
+    <div className="min-h-screen bg-emerald-50/70 px-4 py-12">
+      <div className="mx-auto max-w-md rounded-3xl border border-emerald-100 bg-white/90 p-8 shadow-xl backdrop-blur">
+        <div className="mb-8 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.4em] text-emerald-600">Rail Rolls</p>
+          <h1 className="mt-3 text-3xl font-semibold text-gray-900">
+            <span className="text-emerald-600">Console</span> Access
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Sign in to manage outlets & workers</p>
+          <p className="mt-2 text-sm text-gray-500">Use your company email to sign in.</p>
         </div>
 
-        {/* Card */}
-        <form
-          onSubmit={signIn}
-          className="rounded-2xl border border-gray-200 bg-white shadow-sm p-6 space-y-4"
-        >
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Email</label>
+        <form onSubmit={signIn} className="space-y-5">
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-gray-700">Email</label>
             <input
               type="email"
               placeholder="name@company.com"
               autoComplete="off"
-              // CHANGED HERE → Added `text-black` so typed text is black, and kept focus border green
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 text-gray-900 placeholder-gray-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={e => setEmail(e.target.value)}
               required
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700">Password</label>
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-gray-700">Password</label>
             <input
               type="password"
               placeholder="••••••••"
-              autoComplete="new-password"
-              // CHANGED HERE → Added `text-black` so password input text also stays black
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              autoComplete="current-password"
+              className="w-full rounded-2xl border border-gray-200 px-4 py-2.5 text-gray-900 placeholder-gray-400 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={e => setPassword(e.target.value)}
               required
             />
           </div>
@@ -75,16 +67,13 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full inline-flex items-center justify-center rounded-lg bg-green-600 px-4 py-2.5 text-white font-medium shadow-sm hover:bg-green-700 disabled:opacity-60 transition"
+            className="w-full rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-700 disabled:opacity-60"
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {loading ? 'Preparing dashboard…' : 'Sign in'}
           </button>
         </form>
 
-        {/* Footer note */}
-        <p className="text-center text-xs text-gray-500 mt-4">
-          By continuing you agree to the company’s usage policy.
-        </p>
+        <p className="mt-6 text-center text-xs text-gray-500">Use your company email to sign in.</p>
       </div>
     </div>
   )
