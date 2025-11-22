@@ -2,7 +2,7 @@
 ---
 
 ```markdown
-# 🚆 Rail Rolls – Worker Attendance & Payroll System
+ 🚆 Rail Rolls – Worker Attendance & Payroll System
 
 A **smart attendance & payroll management system** built for **QSR (Quick Service Restaurant) chains** to efficiently handle **worker attendance, salary tracking, and payroll automation** — all with **face authentication** and **GPS validation**.
 
