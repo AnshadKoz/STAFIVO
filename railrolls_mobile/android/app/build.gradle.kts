@@ -7,7 +7,8 @@ plugins {
 
 android {
     namespace = "com.example.railrolls_mobile"
-    compileSdk = flutter.compileSdkVersion
+    // Raised to satisfy tflite_flutter (requires 36); backward compatible.
+    compileSdk = maxOf(flutter.compileSdkVersion, 36)
     ndkVersion = "27.0.12077973"
 
     compileOptions {

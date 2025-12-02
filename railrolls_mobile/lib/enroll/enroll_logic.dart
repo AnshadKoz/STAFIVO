@@ -21,11 +21,13 @@ class EnrollResult {
     required this.embedding,
     required this.successfulFrames,
     this.bestFrameIndex,
+    required this.faceHash,
   });
 
   final List<double> embedding;
   final int successfulFrames;
   final int? bestFrameIndex;
+  final String faceHash;
 }
 
 class EnrollController {
@@ -72,19 +74,29 @@ class EnrollController {
 
     final averaged = meanVectors(vectors);
     final faceHash = _embeddingHash(averaged);
-    await _client.from('face_profiles').upsert({
-      'worker_id': workerId,
-      'embedding': averaged,
-      'face_hash': faceHash,
-      'embed_model': _embedder.modelName,
-      'version': 3,
-    }, onConflict: 'worker_id');
 
     return EnrollResult(
       embedding: averaged,
       successfulFrames: vectors.length,
       bestFrameIndex: firstSuccessIndex,
+      faceHash: faceHash,
     );
+  }
+
+  /// Persists the profile after `enrollWorker` generates an embedding.
+  Future<void> saveProfile(
+    String workerId,
+    EnrollResult result, {
+    String? imageUrl,
+  }) async {
+    await _client.from('face_profiles').upsert({
+      'worker_id': workerId,
+      'embedding': result.embedding,
+      'face_hash': result.faceHash,
+      'embed_model': _embedder.modelName,
+      'version': 3,
+      if (imageUrl != null) 'image_url': imageUrl,
+    }, onConflict: 'worker_id');
   }
 
   Future<void> dispose() async {

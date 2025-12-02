@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:developer' as developer;
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final sb = Supabase.instance.client;
@@ -54,27 +55,17 @@ class SupabaseRepo {
   }
 
   static Future<List<WorkerDropdown>> workerDropdown() async {
-    try {
-      final response = await sb.rpc('worker_dropdown_data').select();
-      final rows = _castList(response);
-      return rows.map((row) => WorkerDropdown.fromRow(row)).toList();
-    } on PostgrestException catch (e, stack) {
-      developer.log(
-        'worker_dropdown_data RPC failed: ${e.message}',
-        name: 'SupabaseRepo',
-        error: e,
-        stackTrace: stack,
-      );
-      return [];
-    } catch (e, stack) {
-      developer.log(
-        'worker_dropdown_data RPC unexpected error: $e',
-        name: 'SupabaseRepo',
-        error: e,
-        stackTrace: stack,
-      );
-      return [];
-    }
+    final res = await sb.rpc('worker_dropdown_data');
+    debugPrint('DEBUG worker_dropdown_data: $res');
+    if (res is! List) return [];
+    return res.map<Map<String, dynamic>>((row) {
+      final map = Map<String, dynamic>.from(row as Map);
+      return {
+        'id': map['id']?.toString() ?? '',
+        'name': map['name']?.toString() ?? 'Unnamed',
+        'enrolled': map['enrolled'] as bool? ?? false,
+      };
+    }).map((row) => WorkerDropdown.fromRow(row)).toList();
   }
 
   static Future<Set<String>> enrolledWorkerIds() async {
@@ -92,13 +83,34 @@ class SupabaseRepo {
 
   /// Returns {id, name, latitude, longitude, radius_meters}
   static Future<Map<String, dynamic>?> outletByWorker(String workerId) async {
-    final rows = await sb
-        .from('workers')
-        .select('outlet_id, outlet:outlet_id (id, name, latitude, longitude, radius_meters)')
-        .eq('id', workerId)
-        .limit(1);
-    if (rows.isEmpty) return null;
-    return rows[0]['outlet'] as Map<String, dynamic>?;
+    final res = await sb.rpc(
+      'worker_outlet',
+      params: {'worker_uuid': workerId},
+    );
+
+    if (res is! List || res.isEmpty) {
+      developer.log(
+        'DEBUG outletByWorker: no rows for worker $workerId',
+        name: 'SupabaseRepo',
+      );
+      return null;
+    }
+
+    final first = res.first;
+    if (first is! Map) {
+      developer.log(
+        'DEBUG outletByWorker: unexpected row type: $first',
+        name: 'SupabaseRepo',
+      );
+      return null;
+    }
+
+    final row = Map<String, dynamic>.from(first as Map);
+    developer.log(
+      'DEBUG outletByWorker: resolved outlet => $row',
+      name: 'SupabaseRepo',
+    );
+    return row;
   }
 
   /// Returns stored face profile info.

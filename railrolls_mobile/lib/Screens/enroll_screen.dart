@@ -88,7 +88,10 @@ class _EnrollScreenState extends State<EnrollScreen> {
       (c) => c.lensDirection == CameraLensDirection.front,
       orElse: () => cameras.first,
     );
+    // Prefer a sharper preview (high) but keep graceful fallbacks for devices
+    // that cannot deliver that size; capture resolution stays high.
     final presets = <ResolutionPreset>[
+      ResolutionPreset.high,
       ResolutionPreset.medium,
       ResolutionPreset.low,
     ];
@@ -215,9 +218,11 @@ class _EnrollScreenState extends State<EnrollScreen> {
 
       final publicUrl = Supabase.instance.client.storage.from('faces').getPublicUrl(storagePath);
 
-      await Supabase.instance.client
-          .from('face_profiles')
-          .update({'image_url': '/faces/$storagePath'}).eq('worker_id', _selectedWorkerId!);
+      await _enrollController.saveProfile(
+        _selectedWorkerId!,
+        result,
+        imageUrl: '/faces/$storagePath',
+      );
 
       final ratio = result.successfulFrames / captureCount;
       if (!mounted) return;
@@ -244,6 +249,31 @@ class _EnrollScreenState extends State<EnrollScreen> {
           _toast('Select the next worker to continue enrollment.');
         }
       }
+    } on PostgrestException catch (e, stack) {
+      // Surface Supabase errors to help diagnose RLS / schema issues.
+      developer.log(
+        'Supabase enrollment failed: ${e.message}',
+        name: 'EnrollScreen',
+        error: e,
+        stackTrace: stack,
+      );
+      final hintStr = e.hint?.toString();
+      final detailsStr = e.details?.toString();
+      final details = [
+        if (e.code != null) 'code ${e.code}',
+        if (hintStr != null && hintStr.isNotEmpty) 'hint: $hintStr',
+        if (detailsStr != null && detailsStr.isNotEmpty) 'details: $detailsStr',
+      ].where((s) => s.isNotEmpty).join(' • ');
+      final message = details.isEmpty ? e.message : '${e.message} ($details)';
+      _toast('Enrollment failed: $message');
+    } catch (e, stack) {
+      developer.log(
+        'Enrollment pipeline failed',
+        name: 'EnrollScreen',
+        error: e,
+        stackTrace: stack,
+      );
+      _toast('Enrollment failed: $e');
     } finally {
       if (mounted) {
         setState(() => _saving = false);

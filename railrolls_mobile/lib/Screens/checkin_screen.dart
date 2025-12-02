@@ -109,7 +109,9 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
       (c) => c.lensDirection == CameraLensDirection.front,
       orElse: () => cameras.first,
     );
+    // Use a higher-res preview when possible; still fall back if device rejects it.
     final presets = <ResolutionPreset>[
+      ResolutionPreset.high,
       ResolutionPreset.medium,
       ResolutionPreset.low,
     ];
@@ -314,6 +316,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
 
   Future<bool> _continueLocationCheck(String action) async {
     final outlet = await SupabaseRepo.outletByWorker(_selectedWorkerId!);
+    debugPrint('DEBUG outlet for worker $_selectedWorkerId => $outlet');
     if (outlet == null) {
       _clearLocationTimeout();
       _toast('Outlet not found');
@@ -342,9 +345,16 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     final radius = (outlet['radius_meters'] as num).toDouble();
     if (dist > radius) {
       _clearLocationTimeout();
-      _toast(
-        'Outside outlet geofence (${dist.toStringAsFixed(1)} m > ${radius.toStringAsFixed(0)} m)',
-      );
+      final msg =
+          'Outside outlet geofence (${dist.toStringAsFixed(1)} m > ${radius.toStringAsFixed(0)} m)';
+      if (mounted) {
+        setState(() {
+          _locationCheckPassed = false;
+          _locationStatusMessage = msg;
+          _status = 'Outside outlet geofence';
+        });
+      }
+      _toast(msg);
       return false;
     }
 
