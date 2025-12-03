@@ -372,3 +372,54 @@ export async function logAdminAttendanceAction(
   revalidatePath('/manager')
   return success('Attendance saved')
 }
+
+export async function createWorkerAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  // Use service client to bypass RLS for admin actions
+  const supabase = createServiceClient()
+
+  const name = (formData.get('name') as string | null)?.trim()
+  const phone = (formData.get('phone') as string | null)?.trim()
+  const email = (formData.get('email') as string | null)?.trim()
+  const outletId = formData.get('outlet_id') as string | null
+  const baseSalary = formData.get('base_salary_per_hour') ? Number(formData.get('base_salary_per_hour')) : null
+  const otRate = formData.get('ot_rate_per_hour') ? Number(formData.get('ot_rate_per_hour')) : null
+
+  if (!name) return failure('Name is required')
+
+  // Get current user for created_by field
+  const regularClient = await createClient()
+  const {
+    data: { user },
+  } = await regularClient.auth.getUser()
+
+  let creatorAppUserId: string | null = null
+  if (user) {
+    const { data: appUser } = await regularClient
+      .from('app_users')
+      .select('id')
+      .eq('auth_id', user.id)
+      .single()
+    creatorAppUserId = appUser?.id ?? null
+  }
+
+  const { error } = await supabase.from('workers').insert([
+    {
+      name,
+      phone: phone || null,
+      email: email || null,
+      outlet_id: outletId || null,
+      base_salary_per_hour: baseSalary,
+      ot_rate_per_hour: otRate,
+      created_by: creatorAppUserId,
+    },
+  ])
+
+  if (error) {
+    console.error('[createWorkerAction] Failed to create worker', error.message)
+    return failure(error.message)
+  }
+
+  revalidatePath('/admin')
+  revalidatePath('/manager')
+  return success('Worker created')
+}

@@ -30,6 +30,7 @@ import {
   createManagerAction,
   updateManagerAction,
   logAdminAttendanceAction,
+  createWorkerAction,
   type ActionResult,
 } from '@/app/admin/adminActions'
 
@@ -185,10 +186,10 @@ const todayISO = () => new Date().toISOString().slice(0, 10)
 const formatCurrency = (value: number | null | undefined) =>
   typeof value === 'number'
     ? new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: 'INR',
-        maximumFractionDigits: 2,
-      }).format(value)
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2,
+    }).format(value)
     : 'Not set'
 
 const formatRate = (value: number | null | undefined) =>
@@ -520,26 +521,18 @@ export default function ManagerDashboardClient({
       setWorkerMessage('Name is required')
       return
     }
-    const baseRateValue = form.base_salary_per_hour === '' ? null : Number(form.base_salary_per_hour)
-    const otRateValue = form.ot_rate_per_hour === '' ? null : Number(form.ot_rate_per_hour)
+    const formData = new FormData()
+    formData.append('name', form.name)
+    if (form.phone) formData.append('phone', form.phone)
+    if (form.email) formData.append('email', form.email)
+    if (form.outlet_id) formData.append('outlet_id', form.outlet_id)
+    if (form.base_salary_per_hour) formData.append('base_salary_per_hour', form.base_salary_per_hour)
+    if (form.ot_rate_per_hour) formData.append('ot_rate_per_hour', form.ot_rate_per_hour)
 
-    const { data: creatorData } = await supabase.auth.getUser()
-    const creator = creatorData.user?.id ?? userId ?? null
+    const result = await createWorkerAction(adminActionInit, formData)
 
-    const { error } = await supabase.from('workers').insert([
-      {
-        name: form.name.trim(),
-        phone: form.phone.trim() || null,
-        email: form.email.trim() || null,
-        outlet_id: form.outlet_id || null,
-        base_salary_per_hour: baseRateValue,
-        ot_rate_per_hour: otRateValue,
-        created_by: creator,
-      },
-    ])
-
-    if (error) {
-      setWorkerMessage(error.message)
+    if (result.status === 'error') {
+      setWorkerMessage(result.message || 'Failed to create worker')
       return
     }
 
@@ -961,9 +954,8 @@ export default function ManagerDashboardClient({
           </button>
           {adjustmentMessage ? (
             <p
-              className={`text-sm ${
-                adjustmentMessage.type === 'success' ? 'text-emerald-600' : 'text-red-600'
-              }`}
+              className={`text-sm ${adjustmentMessage.type === 'success' ? 'text-emerald-600' : 'text-red-600'
+                }`}
             >
               {adjustmentMessage.text}
             </p>
@@ -1002,13 +994,12 @@ export default function ManagerDashboardClient({
                         <p className="text-xs text-gray-500">{request.email ?? request.phone ?? '—'}</p>
                       </div>
                       <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                          request.status === 'pending'
-                            ? 'bg-amber-100 text-amber-700'
-                            : request.status === 'approved'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-red-100 text-red-700'
-                        }`}
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${request.status === 'pending'
+                          ? 'bg-amber-100 text-amber-700'
+                          : request.status === 'approved'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-red-100 text-red-700'
+                          }`}
                       >
                         {request.status}
                       </span>
@@ -1454,18 +1445,16 @@ export default function ManagerDashboardClient({
           <button
             type="button"
             onClick={() => setAnalyticsMode('month')}
-            className={`rounded-full px-3 py-1 transition ${
-              analyticsMode === 'month' ? 'bg-white shadow text-emerald-700' : 'text-emerald-500'
-            }`}
+            className={`rounded-full px-3 py-1 transition ${analyticsMode === 'month' ? 'bg-white shadow text-emerald-700' : 'text-emerald-500'
+              }`}
           >
             This month
           </button>
           <button
             type="button"
             onClick={() => setAnalyticsMode('week')}
-            className={`rounded-full px-3 py-1 transition ${
-              analyticsMode === 'week' ? 'bg-white shadow text-emerald-700' : 'text-emerald-500'
-            }`}
+            className={`rounded-full px-3 py-1 transition ${analyticsMode === 'week' ? 'bg-white shadow text-emerald-700' : 'text-emerald-500'
+              }`}
           >
             This week
           </button>
@@ -1624,9 +1613,8 @@ export default function ManagerDashboardClient({
                   type="submit"
                   onClick={() => handleDecisionSelect('approve')}
                   disabled={appealActionPending}
-                  className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow ${
-                    appealActionPending ? 'cursor-not-allowed bg-emerald-400 opacity-80' : 'bg-emerald-600 hover:bg-emerald-700'
-                  }`}
+                  className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow ${appealActionPending ? 'cursor-not-allowed bg-emerald-400 opacity-80' : 'bg-emerald-600 hover:bg-emerald-700'
+                    }`}
                 >
                   {appealActionPending && appealDecision === 'approve' ? 'Approving...' : 'Approve'}
                 </button>
@@ -1634,9 +1622,8 @@ export default function ManagerDashboardClient({
                   type="submit"
                   onClick={() => handleDecisionSelect('reject')}
                   disabled={appealActionPending}
-                  className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-red-700 shadow ${
-                    appealActionPending ? 'cursor-not-allowed bg-red-100 opacity-80' : 'bg-red-50 hover:bg-red-100'
-                  }`}
+                  className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-red-700 shadow ${appealActionPending ? 'cursor-not-allowed bg-red-100 opacity-80' : 'bg-red-50 hover:bg-red-100'
+                    }`}
                 >
                   {appealActionPending && appealDecision === 'reject' ? 'Rejecting...' : 'Reject'}
                 </button>
@@ -1708,9 +1695,8 @@ export default function ManagerDashboardClient({
                   notificationRows.map(notification => (
                     <div
                       key={notification.id}
-                      className={`rounded-2xl border px-4 py-3 ${
-                        notification.is_read ? 'border-gray-100 bg-white' : 'border-emerald-100 bg-emerald-50'
-                      }`}
+                      className={`rounded-2xl border px-4 py-3 ${notification.is_read ? 'border-gray-100 bg-white' : 'border-emerald-100 bg-emerald-50'
+                        }`}
                     >
                       <p className="text-sm font-semibold">{notification.title}</p>
                       {notification.body ? (

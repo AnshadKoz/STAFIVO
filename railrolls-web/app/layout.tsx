@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import LoadingShell from './_components/LoadingShell'
-import { ToastProvider } from './_components/ToastProvider'
+import { ToastProvider } from '@/app/_components/ToastProvider'
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
