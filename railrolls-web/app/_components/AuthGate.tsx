@@ -9,14 +9,32 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [authed, setAuthed] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setAuthed(!!data.session)
-      setLoading(false)
+    let mounted = true
+
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (mounted) {
+        setAuthed(!!session)
+        setLoading(false)
+      }
+    }
+
+    checkSession()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (mounted) {
+        setAuthed(!!session)
+      }
     })
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
-      setAuthed(!!session)
-    })
-    return () => sub.subscription.unsubscribe()
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   if (loading) return <div className="p-6">Loading...</div>

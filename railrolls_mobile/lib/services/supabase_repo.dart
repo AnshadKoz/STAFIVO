@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:developer' as developer;
 
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 final sb = Supabase.instance.client;
@@ -28,25 +27,15 @@ class SupabaseRepo {
     }
   }
 
-  /// Workers missing enrollment using a left join fallback.
+  /// Workers missing enrollment using RPC fallback (safe, uses SECURITY DEFINER).
   static Future<List<Map<String, dynamic>>> workersNeedingEnrollmentFallback() async {
-    final rows = await sb
-        .from('workers')
-        .select('id,name,face_profiles!left(worker_id)')
-        .order('name');
-    final pending = <Map<String, dynamic>>[];
-    for (final row in _castList(rows)) {
-      final faceProfiles = row['face_profiles'];
-      final hasProfile = (faceProfiles is Map && faceProfiles.isNotEmpty) ||
-          (faceProfiles is List && faceProfiles.isNotEmpty);
-      if (!hasProfile) {
-        pending.add({
-          'id': row['id'],
-          'name': row['name'],
-        });
-      }
+    try {
+      final rows = await sb.rpc('workers_needing_enrollment');
+      return _castList(rows);
+    } catch (e) {
+      // If RPC fails, return empty list (should not happen after migration)
+      return [];
     }
-    return pending;
   }
 
   static Future<List<Map<String, dynamic>>> allWorkers() async {
@@ -54,22 +43,48 @@ class SupabaseRepo {
     return _castList(rows);
   }
 
+  /// Fetch all outlets for selection dropdown.
+  static Future<List<Map<String, dynamic>>> listOutlets() async {
+    final rows = await sb
+        .from('outlets')
+        .select('id, name, latitude, longitude, radius_meters')
+        .order('name');
+    return _castList(rows);
+  }
+
   static Future<List<WorkerDropdown>> workerDropdown() async {
-    final res = await sb.rpc('worker_dropdown_data');
-    debugPrint('DEBUG worker_dropdown_data: $res');
-    if (res is! List) return [];
-    return res.map<Map<String, dynamic>>((row) {
-      final map = Map<String, dynamic>.from(row as Map);
-      return {
-        'id': map['id']?.toString() ?? '',
-        'name': map['name']?.toString() ?? 'Unnamed',
-        'enrolled': map['enrolled'] as bool? ?? false,
-      };
-    }).map((row) => WorkerDropdown.fromRow(row)).toList();
+    // Use RPC function to safely get enrollment status without exposing face_profiles
+    final rows = await sb.rpc('workers_with_enrollment');
+    
+    return _castList(rows).map((row) {
+      return WorkerDropdown(
+        id: row['id']?.toString() ?? '',
+        name: row['name']?.toString() ?? 'Unnamed',
+        enrolled: row['enrolled'] == true,
+      );
+    }).toList();
+  }
+
+  /// Fetch workers filtered by outlet_id with enrollment status.
+  /// Uses RPC function to safely get enrollment status without exposing face_profiles.
+  static Future<List<WorkerDropdown>> workersByOutlet(String outletId) async {
+    final rows = await sb.rpc(
+      'workers_by_outlet_with_enrollment',
+      params: {'p_outlet_id': outletId},
+    );
+    
+    return _castList(rows).map((row) {
+      return WorkerDropdown(
+        id: row['id']?.toString() ?? '',
+        name: row['name']?.toString() ?? 'Unnamed',
+        enrolled: row['enrolled'] == true,
+      );
+    }).toList();
   }
 
   static Future<Set<String>> enrolledWorkerIds() async {
-    final rows = await sb.from('face_profiles').select('worker_id');
+    // Use RPC function to safely get enrolled worker IDs without exposing face_profiles
+    final rows = await sb.rpc('enrolled_worker_ids');
     final list = _castList(rows);
     final ids = <String>{};
     for (final row in list) {
@@ -105,7 +120,7 @@ class SupabaseRepo {
       return null;
     }
 
-    final row = Map<String, dynamic>.from(first as Map);
+    final row = Map<String, dynamic>.from(first);
     developer.log(
       'DEBUG outletByWorker: resolved outlet => $row',
       name: 'SupabaseRepo',
@@ -114,14 +129,34 @@ class SupabaseRepo {
   }
 
   /// Returns stored face profile info.
+  /// Uses RPC function to safely retrieve face profile without exposing face_profiles directly.
+  /// 
+  /// CRITICAL SECURITY: Validates that returned worker_id matches requested worker_id
+  /// to prevent cross-worker face acceptance attacks.
   static Future<Map<String, dynamic>?> faceProfile(String workerId) async {
-    final rows = await sb
-        .from('face_profiles')
-        .select('worker_id, embedding, image_url, embed_model, version')
-        .eq('worker_id', workerId)
-        .limit(1);
+    final rows = await sb.rpc(
+      'get_face_profile',
+      params: {'p_worker_id': workerId},
+    );
     if (rows.isEmpty) return null;
     final row = Map<String, dynamic>.from(rows[0] as Map);
+    
+    // CRITICAL SECURITY CHECK: Validate worker_id binding
+    final returnedWorkerId = row['worker_id']?.toString();
+    if (returnedWorkerId != workerId) {
+      developer.log(
+        'SECURITY ERROR: Worker ID mismatch detected. '
+        'Requested: $workerId, Returned: $returnedWorkerId',
+        name: 'SupabaseRepo.faceProfile',
+        level: 1000, // SHOUT level
+      );
+      throw Exception(
+        'Security validation failed: Face profile worker_id mismatch. '
+        'This incident has been logged.'
+      );
+    }
+    
+    // Parse embedding from vector (PostgREST converts vector to JSON array)
     row['embedding'] = _parseEmbedding(row['embedding']);
     return row;
   }

@@ -30,7 +30,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
     setToasts(prev => [...prev, { ...toast, id }])
     setTimeout(() => {
       setToasts(prev => prev.filter(entry => entry.id !== id))
-    }, 3200)
+    }, 3000)
   }, [])
 
   const value = useMemo(() => ({ showToast }), [showToast])
@@ -42,13 +42,12 @@ export function ToastProvider({ children }: ToastProviderProps) {
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`min-w-[240px] rounded-2xl px-4 py-3 text-sm shadow-lg transition ${
-              toast.type === 'success'
+            className={`min-w-[240px] rounded-2xl px-4 py-3 text-sm shadow-lg transition ${toast.type === 'success'
                 ? 'bg-emerald-600 text-white'
                 : toast.type === 'error'
                   ? 'bg-rose-50 text-rose-700'
                   : 'bg-gray-900/90 text-white'
-            }`}
+              }`}
           >
             <p className="font-semibold">{toast.title}</p>
             {toast.description ? <p className="mt-1 text-xs opacity-90">{toast.description}</p> : null}

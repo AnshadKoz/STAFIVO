@@ -47,7 +47,7 @@ export default async function WorkerPage() {
 
   const { data: workerRow, error: workerError } = await supabase
     .from('workers')
-    .select('id, name, base_salary_per_hour, ot_rate_per_hour')
+    .select('id, name, base_salary_per_hour, ot_rate_per_hour, outlet_id, outlets(name)')
     .eq('auth_id', user.id)
     .single()
 
@@ -86,7 +86,7 @@ export default async function WorkerPage() {
 
   const { data: adjustments } = await supabase
     .from('worker_adjustments')
-    .select('id,effective_date, kind, hours, amount, note')
+    .select('id,effective_date, kind, hours, amount, note, fine_appeals(id, status)')
     .eq('worker_id', workerRow.id)
     .order('effective_date', { ascending: false })
     .limit(30)
@@ -111,7 +111,10 @@ export default async function WorkerPage() {
 
   return (
     <WorkerDashboardClient
-      worker={workerRow}
+      worker={{
+        ...workerRow,
+        outlets: Array.isArray(workerRow.outlets) ? workerRow.outlets[0] : workerRow.outlets
+      }}
       weeklyHours={weeklyHours}
       monthlyHours={monthlyHours}
       dailyRows={(dailyRows as DailyRow[]) ?? []}

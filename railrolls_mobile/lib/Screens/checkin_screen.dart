@@ -1,10 +1,12 @@
 import 'dart:io';
 
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:camera/camera.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../face/face_cropper.dart';
 import '../face/face_embedder.dart';
@@ -15,6 +17,7 @@ import '../services/offline_queue.dart';
 import '../services/supabase_repo.dart';
 import '../widgets/face_frame_overlay.dart';
 import '../widgets/railrolls_app_bar.dart';
+import '../widgets/alert_dialog_helper.dart';
 
 class CheckInScreen extends StatefulWidget {
   const CheckInScreen({super.key});
@@ -24,7 +27,13 @@ class CheckInScreen extends StatefulWidget {
 }
 
 class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
-  static const double _faceThreshold = 0.40;
+  // Face verification thresholds
+  // SECURITY: Verification is intentionally stricter than enrollment
+  // - Enrollment: Permissive (allows enrollment in varied conditions)
+  // - Verification: Strict (prevents false acceptance in production)
+  static const double _faceThreshold = 0.40; // Cosine distance threshold
+  static const double _faceMinConfidence = 0.80; // 80% minimum confidence required
+  static const String _outletPrefKey = 'selected_outlet_id';
 
   CameraController? _camera;
   final FaceCropper _cropper = FaceCropper();
@@ -36,6 +45,11 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   String? _cameraError;
   String? _bootstrapError;
 
+  // Outlet selection state
+  String? _selectedOutletId;
+  List<Map<String, dynamic>> _outlets = [];
+  bool _workerDropdownEnabled = false;
+
   String? _selectedWorkerId;
   List<Map<String, dynamic>> _workers = [];
   String _status = 'Ready';
@@ -43,7 +57,6 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   bool _faceCheckPassed = false;
   bool _locationCheckPassed = false;
   String? _lastActionSummary;
-  Timer? _locationTimer;
   String? _locationStatusMessage;
 
   @override
@@ -74,7 +87,52 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     }
 
     try {
-      final rows = await RepoList.workers();
+      // Load outlets first
+      List<Map<String, dynamic>> outlets = [];
+      try {
+        outlets = await SupabaseRepo.listOutlets();
+        debugPrint('DEBUG loaded ${outlets.length} outlets');
+        if (outlets.isEmpty) {
+          debugPrint('WARNING: No outlets found - check RLS policies for outlets table');
+        }
+      } catch (e) {
+        // Log technical details for debugging
+        developer.log(
+          'ERROR loading outlets: $e',
+          name: 'CheckInScreen._initAll',
+          error: e,
+        );
+        
+        // Show user-friendly message for offline errors
+        if (!mounted) return;
+        setState(() {
+          _bootstrapError = _sanitizeBootstrapError(e);
+          _ready = true;
+        });
+        return;
+      }
+      
+      // Load saved outlet selection
+      String? savedOutletId;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        savedOutletId = prefs.getString(_outletPrefKey);
+        debugPrint('DEBUG loaded saved outlet: $savedOutletId');
+      } catch (e) {
+        debugPrint('DEBUG failed to load saved outlet: $e');
+      }
+
+      // Load workers based on outlet selection
+      List<Map<String, dynamic>> workers = [];
+      bool workerDropdownEnabled = false;
+      
+      if (savedOutletId != null && outlets.any((o) => o['id'] == savedOutletId)) {
+        // Auto-load workers from saved outlet
+        workers = await RepoList.workers(outletId: savedOutletId);
+        workerDropdownEnabled = true;
+        debugPrint('DEBUG auto-loaded ${workers.length} workers from saved outlet');
+      }
+
       String? pipelineError;
       try {
         await _embedder.load();
@@ -85,19 +143,48 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
       await _initializeCamera();
       if (!mounted) return;
       setState(() {
-        _workers = rows;
+        _outlets = outlets;
+        _selectedOutletId = savedOutletId;
+        _workers = workers;
+        _workerDropdownEnabled = workerDropdownEnabled;
         _pipelineError = pipelineError;
         _bootstrapError = null;
         _ready = true;
       });
     } catch (e) {
-      debugPrint('Check-in bootstrap failed: $e');
+      // Log technical details for debugging
+      developer.log(
+        'Check-in bootstrap failed: $e',
+        name: 'CheckInScreen._initAll',
+        error: e,
+      );
+      
       if (!mounted) return;
       setState(() {
-        _bootstrapError = e.toString();
+        _bootstrapError = _sanitizeBootstrapError(e);
         _ready = true;
       });
     }
+  }
+
+  /// Sanitizes bootstrap errors to show user-friendly messages
+  /// instead of exposing technical details like SocketException or Supabase URLs.
+  String _sanitizeBootstrapError(Object error) {
+    final errorString = error.toString().toLowerCase();
+    
+    // Detect offline/network errors
+    if (errorString.contains('socketexception') ||
+        errorString.contains('clientexception') ||
+        errorString.contains('failed host lookup') ||
+        errorString.contains('no address associated') ||
+        errorString.contains('network unreachable') ||
+        errorString.contains('connection refused') ||
+        errorString.contains('connection timeout')) {
+      return 'No internet connection.\nPlease turn on mobile data or Wi-Fi and tap Retry.';
+    }
+    
+    // For other errors, show generic message without exposing internals
+    return 'Unable to connect.\nPlease check your connection and tap Retry.';
   }
 
   Future<CameraController> _createCameraController() async {
@@ -144,7 +231,13 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     if (controller != null) {
       try {
         await controller.dispose();
-      } catch (_) {}
+      } catch (e) {
+        developer.log(
+          'Error disposing camera controller',
+          name: 'CheckInScreen',
+          error: e,
+        );
+      }
     }
   }
 
@@ -184,23 +277,94 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     await _initializeCamera();
   }
 
-  Future<void> _refreshWorkers({String? keepSelection}) async {
-    final rows = await RepoList.workers();
-    if (!mounted) return;
-    setState(() {
-      _workers = rows;
-      if (keepSelection != null && rows.any((w) => w['id'] == keepSelection)) {
-        _selectedWorkerId = keepSelection;
-      } else {
+  Future<void> _refreshWorkers({bool preserveSelection = false}) async {
+    if (_selectedOutletId == null) return;
+
+    try {
+      final rows = await RepoList.workers(outletId: _selectedOutletId);
+      if (!mounted) return;
+
+      setState(() {
+        _workers = rows;
+
+        if (preserveSelection && _selectedWorkerId != null) {
+          final exists = rows.any(
+            (w) => w['id'].toString() == _selectedWorkerId,
+          );
+          if (!exists) {
+            _selectedWorkerId = null;
+          }
+        }
+        // ❗ otherwise DO NOT TOUCH _selectedWorkerId
+      });
+    } catch (e) {
+      debugPrint('Error refreshing workers: $e');
+    }
+  }
+
+  Future<void> _handleOutletChange(String? outletId) async {
+    debugPrint('DEBUG _handleOutletChange called with outletId: $outletId');
+    
+    if (outletId == null) {
+      debugPrint('DEBUG outlet selection cleared');
+      setState(() {
+        _selectedOutletId = null;
+        _workers = [];
         _selectedWorkerId = null;
-      }
+        _workerDropdownEnabled = false;
+        _faceCheckPassed = false;
+        _locationCheckPassed = false;
+        _lastActionSummary = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _selectedOutletId = outletId;
+      _selectedWorkerId = null;
+      _faceCheckPassed = false;
+      _locationCheckPassed = false;
+      _lastActionSummary = null;
+      _status = 'Loading workers...';
     });
+
+    // Save outlet selection
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_outletPrefKey, outletId);
+      debugPrint('DEBUG saved outlet selection: $outletId');
+    } catch (e) {
+      debugPrint('DEBUG failed to save outlet: $e');
+    }
+
+    // Fetch workers for selected outlet
+    try {
+      debugPrint('DEBUG fetching workers for outlet: $outletId');
+      final workers = await RepoList.workers(outletId: outletId);
+      debugPrint('DEBUG fetched ${workers.length} workers: $workers');
+      
+      if (!mounted) return;
+      setState(() {
+        _workers = workers;
+        _workerDropdownEnabled = true;
+        _status = 'Ready';
+      });
+      debugPrint('DEBUG worker dropdown enabled with ${workers.length} workers');
+    } catch (e) {
+      debugPrint('ERROR loading workers: $e');
+      if (!mounted) return;
+      setState(() {
+        _workers = [];
+        _workerDropdownEnabled = false;
+        _status = 'Failed to load workers';
+      });
+    }
   }
 
   Map<String, dynamic>? _findWorker(String? workerId) {
     if (workerId == null) return null;
     for (final worker in _workers) {
-      if (worker['id'] == workerId) {
+      if (worker['id'].toString() == workerId) {
         return worker;
       }
     }
@@ -230,7 +394,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
       if (!mounted) return;
       final completed = result == true || result == 'enrollment_completed';
       if (completed) {
-        await _refreshWorkers(keepSelection: workerId);
+        await _refreshWorkers(preserveSelection: true);
       }
       await _restartCameraPreview();
     }
@@ -240,7 +404,6 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   void dispose() {
     railRouteObserver.unsubscribe(this);
     _disposeCameraController(updateState: false);
-    _locationTimer?.cancel();
     _cropper.close();
     _embedder.close();
     super.dispose();
@@ -254,23 +417,11 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   @override
   void didPopNext() {
     _restartCameraPreview();
+    if (mounted && _selectedOutletId != null) {
+      _refreshWorkers(); // ❗ no preserve
+    }
   }
 
-  void _startLocationTimeout() {
-    _locationTimer?.cancel();
-    _locationTimer = Timer(const Duration(seconds: 4), () {
-      if (!_locationCheckPassed && mounted && _busy) {
-        setState(() {
-          _locationStatusMessage = 'Location unavailable. Turn it on and tap Check again.';
-        });
-      }
-    });
-  }
-
-  void _clearLocationTimeout() {
-    _locationTimer?.cancel();
-    _locationTimer = null;
-  }
 
   Future<void> _doAction(String action) async {
     if (_selectedWorkerId == null) {
@@ -300,7 +451,6 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
       final faceOk = await _verifyFace();
       if (!faceOk) return;
 
-      _startLocationTimeout();
       setState(() {
         _faceCheckPassed = true;
         _status = 'Checking location...';
@@ -318,7 +468,6 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     final outlet = await SupabaseRepo.outletByWorker(_selectedWorkerId!);
     debugPrint('DEBUG outlet for worker $_selectedWorkerId => $outlet');
     if (outlet == null) {
-      _clearLocationTimeout();
       _toast('Outlet not found');
       return false;
     }
@@ -327,7 +476,6 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     try {
       pos = await GeoService.currentPosition();
     } catch (e) {
-      _clearLocationTimeout();
       if (mounted) {
         setState(() {
           _locationStatusMessage = 'Location unavailable. Turn it on and tap Check again.';
@@ -344,7 +492,6 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     );
     final radius = (outlet['radius_meters'] as num).toDouble();
     if (dist > radius) {
-      _clearLocationTimeout();
       final msg =
           'Outside outlet geofence (${dist.toStringAsFixed(1)} m > ${radius.toStringAsFixed(0)} m)';
       if (mounted) {
@@ -358,7 +505,6 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
       return false;
     }
 
-    _clearLocationTimeout();
     setState(() {
       _locationCheckPassed = true;
       _status = 'Validating last state...';
@@ -434,6 +580,21 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
       _toast('No face profile for this worker. Enroll first.');
       return false;
     }
+    
+    // CRITICAL SECURITY CHECK: Validate worker_id binding
+    // This prevents cross-worker face acceptance attacks
+    final profileWorkerId = profile['worker_id']?.toString();
+    if (profileWorkerId != _selectedWorkerId) {
+      developer.log(
+        'SECURITY ERROR: Worker ID mismatch in face verification. '
+        'Selected: $_selectedWorkerId, Profile: $profileWorkerId',
+        name: 'CheckInScreen._verifyFace',
+        level: 1000, // SHOUT level
+      );
+      _toast('Security validation failed. Please try again or contact support.');
+      return false;
+    }
+    
     final rawEmbedding = profile['embedding'];
     if (rawEmbedding is! List || rawEmbedding.isEmpty) {
       _toast('Face profile missing embedding data. Please re-enroll this worker.');
@@ -446,83 +607,219 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
       _toast('Face profile is outdated. Please re-enroll this worker.');
       return false;
     }
+    
+    // Compute cosine distance and confidence
     final distance = cosineDistance(probe, storedEmbedding);
-    _lastFaceScore = 1 - distance;
+    final confidence = 1 - distance;
+    _lastFaceScore = confidence;
+    
+    // CRITICAL: Dual-gate verification - BOTH checks must pass
+    // This prevents low-quality matches (60-70%) from proceeding
+    // even if they pass the distance threshold.
+    //
+    // Gate 1: Distance check (similarity threshold)
     if (distance > _faceThreshold) {
       _toast('Face mismatch. Please try again.');
       return false;
     }
+    
+    // Gate 2: Confidence check (quality threshold)
+    // Rejects faces detected in poor lighting, bad angles, or partial occlusion
+    if (confidence < _faceMinConfidence) {
+      _toast('Face detected, but confidence is too low. Please hold the phone straight and try again.');
+      return false;
+    }
 
+    // Both gates passed - proceed to location check
     return true;
   }
 
   void _toast(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    showAlertDialog(
+      context,
+      message: msg,
+      type: AlertType.warning,
+      autoDismissSeconds: 3,
+    );
     setState(() => _status = msg);
   }
 
   void _success(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    showAlertDialog(
+      context,
+      message: msg,
+      type: AlertType.success,
+      autoDismissSeconds: 3,
+    );
     setState(() => _status = msg);
   }
 
-  Widget _buildDropdown(ColorScheme scheme) {
+  Widget _buildOutletDropdown(ColorScheme scheme) {
     return DropdownButtonFormField<String>(
-      value: _selectedWorkerId,
+      value: _selectedOutletId,
       style: Theme.of(context).textTheme.bodyLarge,
       decoration: InputDecoration(
-        labelText: 'Select worker',
-        hintText: 'Search worker',
-        helperText: 'Unenrolled workers will open face enrollment',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        labelText: 'Select outlet',
+        hintText: 'Choose your outlet',
+        helperText: 'Workers will be filtered by outlet',
+        prefixIcon: Icon(Icons.location_on, color: scheme.primary),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide(color: scheme.outline),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide(color: scheme.outline),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(24),
+          borderSide: BorderSide(color: const Color(0xFF4CAF50), width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       ),
-      items: _workers
+      items: _outlets
           .map(
-            (w) => DropdownMenuItem<String>(
-              value: w['id'] as String,
+            (outlet) => DropdownMenuItem<String>(
+              value: outlet['id'] as String,
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
+                  Icon(Icons.location_on, size: 20, color: scheme.primary),
+                  const SizedBox(width: 12),
                   Flexible(
-                    fit: FlexFit.loose,
                     child: Text(
-                      w['name'] as String? ?? 'Unnamed',
-                      maxLines: 1,
+                      outlet['name'] as String? ?? 'Unnamed Outlet',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color:
-                            (w['enrolled'] == true) ? scheme.onSurface : scheme.error,
-                      ),
                     ),
                   ),
-                  if (w['enrolled'] != true)
-                    const SizedBox(width: 8),
-                  if (w['enrolled'] != true)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: scheme.error.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        'Unenrolled',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: scheme.error,
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ),
           )
           .toList(),
-      onChanged: _handleWorkerChange,
+      onChanged: _handleOutletChange,
+      isExpanded: true,
+    );
+  }
+
+  Widget _buildDropdown(ColorScheme scheme) {
+    // Requirements:
+    // 1. DropdownButtonFormField.value must bind directly to _selectedWorkerId
+    // 2. Do NOT compute or override selected value in build()
+    
+    // Check for zero workers case
+    final hasNoWorkers = _selectedOutletId != null && 
+                        _workerDropdownEnabled && 
+                        _workers.isEmpty;
+    
+    String helperText;
+    if (!_workerDropdownEnabled) {
+      helperText = 'Select an outlet first to load workers';
+    } else if (hasNoWorkers) {
+      helperText = 'No workers found for this outlet';
+    } else {
+      helperText = 'Unenrolled workers will open face enrollment';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          // FIXED: Direct binding to state variable
+          value: _selectedWorkerId,
+          style: Theme.of(context).textTheme.bodyLarge,
+          decoration: InputDecoration(
+            labelText: 'Select worker',
+            hintText: 'Search worker',
+            helperText: helperText,
+            helperMaxLines: 2,
+            prefixIcon: Icon(Icons.person, color: scheme.primary),
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(24),
+              borderSide: BorderSide(color: scheme.outline),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(24),
+              borderSide: BorderSide(color: scheme.outline),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(24),
+              borderSide: BorderSide(color: const Color(0xFF4CAF50), width: 2),
+            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          ),
+          items: _workers
+              .map(
+                (w) => DropdownMenuItem<String>(
+                  // FIXED: Ensure ID is string to match _selectedWorkerId type
+                  value: w['id'].toString(),
+                  child: Row(
+                    children: [
+                      Icon(Icons.person, size: 20, color: scheme.primary),
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: Text(
+                          w['name'] as String? ?? 'Unnamed',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (w['enrolled'] != true) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: scheme.error.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Unenrolled',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: scheme.error,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (_workerDropdownEnabled && !hasNoWorkers)
+              ? (value) {
+                  // Focus cleanup
+                  FocusScope.of(context).unfocus();
+                  _handleWorkerChange(value);
+                }
+              : null,
+          isExpanded: true,
+        ),
+        if (hasNoWorkers) ...[
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Please contact your manager to add workers.',
+              style: TextStyle(
+                fontSize: 12,
+                color: scheme.error,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -839,7 +1136,22 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildDropdown(scheme),
+              // Dropdown selection card
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildOutletDropdown(scheme),
+                    const SizedBox(height: 16),
+                    _buildDropdown(scheme),
+                  ],
+                ),
+              ),
               const SizedBox(height: 16),
               if (_pipelineError != null)
                 Container(
@@ -871,8 +1183,10 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
 }
 
 class RepoList {
-  static Future<List<Map<String, dynamic>>> workers() async {
-    final rows = await SupabaseRepo.workerDropdown();
+  static Future<List<Map<String, dynamic>>> workers({String? outletId}) async {
+    final rows = outletId != null
+        ? await SupabaseRepo.workersByOutlet(outletId)
+        : await SupabaseRepo.workerDropdown();
     return rows.map<Map<String, dynamic>>((worker) {
       return {
         'id': worker.id,

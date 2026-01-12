@@ -84,19 +84,30 @@ class EnrollController {
   }
 
   /// Persists the profile after `enrollWorker` generates an embedding.
+  /// Uses RPC function to enforce duplicate face detection at database level.
+  /// 
+  /// IMPORTANT: This uses RPC instead of direct insert to enforce duplicate face prevention.
+  /// DO NOT use supabase.from('face_profiles').insert() - it will fail after SQL migration.
   Future<void> saveProfile(
     String workerId,
     EnrollResult result, {
     String? imageUrl,
   }) async {
-    await _client.from('face_profiles').upsert({
-      'worker_id': workerId,
-      'embedding': result.embedding,
-      'face_hash': result.faceHash,
-      'embed_model': _embedder.modelName,
-      'version': 3,
-      if (imageUrl != null) 'image_url': imageUrl,
-    }, onConflict: 'worker_id');
+    // Use RPC function for safe enrollment with duplicate detection
+    final params = <String, dynamic>{
+      'p_worker_id': workerId,
+      'p_embedding': result.embedding, // Supabase converts List<double> to vector automatically
+      'p_face_hash': result.faceHash,
+      'p_embed_model': _embedder.modelName,
+      'p_version': 3,
+    };
+    
+    // Only include image_url if provided (SQL function has DEFAULT NULL)
+    if (imageUrl != null) {
+      params['p_image_url'] = imageUrl;
+    }
+    
+    await _client.rpc('enroll_face_profile', params: params);
   }
 
   Future<void> dispose() async {

@@ -6,7 +6,7 @@ import { createClient } from '@/utils/supabase/server'
 import { createServiceClient } from '@/utils/supabase/serviceClient'
 
 export type WorkerActionResult = {
-  status: 'success' | 'error'
+  status: 'idle' | 'success' | 'error'
   message?: string
 }
 
@@ -39,6 +39,16 @@ export async function submitFineAppealAction(
 
   if (!adjustmentId) return failure('Missing adjustment')
   if (!reason) return failure('Reason required')
+
+  const { data: existingAppeal } = await supabase
+    .from('fine_appeals')
+    .select('id')
+    .eq('adjustment_id', adjustmentId)
+    .maybeSingle()
+
+  if (existingAppeal) {
+    return failure('An appeal is already pending or processed for this fine.')
+  }
 
   type ManagerRow = { id: string; outlet_id: string | null; app_user_id: string | null; is_active: boolean }
   let managerRecord: ManagerRow | null = null

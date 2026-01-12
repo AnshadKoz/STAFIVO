@@ -8,6 +8,7 @@ import '../enroll/enroll_logic.dart';
 import '../services/supabase_repo.dart';
 import '../widgets/face_frame_overlay.dart';
 import '../widgets/railrolls_app_bar.dart';
+import '../widgets/alert_dialog_helper.dart';
 
 class EnrollScreen extends StatefulWidget {
   const EnrollScreen({super.key, this.workerId});
@@ -75,7 +76,13 @@ class _EnrollScreenState extends State<EnrollScreen> {
     if (controller != null) {
       try {
         await controller.dispose();
-      } catch (_) {}
+      } catch (e) {
+        developer.log(
+          'Error disposing camera controller',
+          name: 'EnrollScreen',
+          error: e,
+        );
+      }
     }
   }
 
@@ -250,7 +257,31 @@ class _EnrollScreenState extends State<EnrollScreen> {
         }
       }
     } on PostgrestException catch (e, stack) {
-      // Surface Supabase errors to help diagnose RLS / schema issues.
+      // Check for duplicate face error (error code 23514)
+      final isDuplicateFace = e.code == '23514' || 
+                              (e.message.toLowerCase().contains('face already enrolled') ||
+                               e.message.toLowerCase().contains('already enrolled for another worker'));
+      
+      if (isDuplicateFace) {
+        // Show specific alert for duplicate face
+        if (mounted) {
+          showAlertDialog(
+            context,
+            message: 'This face is already registered.\nPlease contact your manager.',
+            type: AlertType.error,
+            autoDismissSeconds: 0, // Don't auto-dismiss, user must acknowledge
+          );
+        }
+        developer.log(
+          'Duplicate face detected during enrollment',
+          name: 'EnrollScreen',
+          error: e,
+          stackTrace: stack,
+        );
+        return;
+      }
+      
+      // Surface other Supabase errors to help diagnose RLS / schema issues.
       developer.log(
         'Supabase enrollment failed: ${e.message}',
         name: 'EnrollScreen',

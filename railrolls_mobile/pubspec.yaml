@@ -47,6 +47,7 @@ dependencies:
   http: ^1.2.2
   image: ^4.2.0
   tflite_flutter: ^0.12.1
+  shared_preferences: ^2.3.3
 
 dev_dependencies:
   flutter_test:
@@ -74,7 +75,7 @@ flutter:
   assets:
     - .env
     - assets/models/mobilefacenet.tflite
-    - assets/Logo_Rail_rolls.png
+    - assets/Logo_Rail_rolls-removebg-preview.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

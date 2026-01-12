@@ -14,6 +14,7 @@ type AttendanceLogRow = {
   outlet_id: string
   action: 'IN' | 'OUT'
   timestamp_utc: string
+  source?: string | null
 }
 
 export default async function AdminPage() {
@@ -54,9 +55,9 @@ export default async function AdminPage() {
 
   const { data: logs } = await supabase
     .from('attendance_logs')
-    .select('id, worker_id, outlet_id, action, timestamp_utc')
+    .select('id, worker_id, outlet_id, action, timestamp_utc, source')
     .order('timestamp_utc', { ascending: false })
-    .limit(20)
+    .limit(100)
 
   const safeWorkers = workers ?? []
   const safeOutlets = outlets ?? []

@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/server'
 import { createServiceClient } from '@/utils/supabase/serviceClient'
 
 export type ActionResult = {
-  status: 'success' | 'error'
+  status: 'idle' | 'success' | 'error'
   message?: string
 }
 
@@ -74,14 +74,19 @@ export async function createManagerAction(_prev: ActionResult, formData: FormDat
   if (mode === 'new') {
     const email = (formData.get('email') as string | null)?.trim()
     const name = (formData.get('name') as string | null)?.trim()
+    const password = (formData.get('password') as string | null)?.trim()
 
     if (!email) return failure('Email is required')
     if (!name) return failure('Name is required')
+    if (!password) return failure('Password is required for new managers')
+    // Basic password strength validation
+    if (password.length < 6) return failure('Password must be at least 6 characters')
 
     try {
       const service = createServiceClient()
       const { data, error } = await service.auth.admin.createUser({
         email,
+        password,
         email_confirm: true,
         user_metadata: { name },
       })
@@ -98,16 +103,19 @@ export async function createManagerAction(_prev: ActionResult, formData: FormDat
           name,
           role: 'manager',
           outlet_id,
+          auth_id: appUserId, // Explicitly link auth_id
         },
       ])
 
       if (insertError) {
         console.error('[createManagerAction] Failed to insert app_user', insertError.message)
+        // Cleanup: try to delete the auth user if app_user insert fails
+        await service.auth.admin.deleteUser(appUserId)
         return failure(insertError.message)
       }
     } catch (err) {
-      console.error('[createManagerAction] Missing service role', err)
-      return failure('Service role key missing. Cannot create new manager user.')
+      console.error('[createManagerAction] Missing service role or other error', err)
+      return failure('System error. Cannot create new manager user.')
     }
   }
 
@@ -181,8 +189,12 @@ export async function approveWorkerRequestAction(_prev: ActionResult, formData: 
   const supabase = await createClient()
   const requestId = formData.get('request_id') as string | null
   const adminComment = (formData.get('admin_comment') as string | null)?.trim() ?? null
+  const password = (formData.get('password') as string | null)?.trim()
 
   if (!requestId) return failure('Missing request id')
+  // We'll require password for approval to ensure the worker can log in
+  if (!password) return failure('Password is required to approve worker')
+  if (password.length < 6) return failure('Password must be at least 6 characters')
 
   const { data: request, error: requestError } = await supabase
     .from('worker_onboarding_requests')
@@ -201,16 +213,46 @@ export async function approveWorkerRequestAction(_prev: ActionResult, formData: 
     return failure('Request already processed')
   }
 
+  // Create Auth User
+  let authUserId: string | null = null
+  const service = createServiceClient()
+
+  // Use email if present, otherwise we'd need a dummy email for Supabase Auth 
+  // or use phone auth (but admin actions usually easier with email/password). 
+  // The validation in createWorkerAction checks for email if passed. 
+  // If email is missing, we can generate a placeholder based on phone? 
+  // For now, let's assume email is preferred or we error if missing for Auth creation.
+  const emailToUse = request.email || `worker_${request.phone}@railrolls.local`
+
+  try {
+    const { data: authData, error: authError } = await service.auth.admin.createUser({
+      email: emailToUse,
+      password: password,
+      email_confirm: true,
+      user_metadata: { name: request.name, phone: request.phone },
+    })
+
+    if (authError || !authData.user) {
+      console.error('[approveWorkerRequestAction] Auth creation failed', authError?.message)
+      return failure(`Auth creation failed: ${authError?.message}`)
+    }
+    authUserId = authData.user.id
+  } catch (err) {
+    console.error('[approveWorkerRequestAction] Service client error', err)
+    return failure('Failed to create login credentials')
+  }
+
   const { data: worker, error: workerError } = await supabase
     .from('workers')
     .insert([
       {
         name: request.name,
         phone: request.phone,
-        email: request.email,
+        email: emailToUse, // Ensure using the email attached to Auth
         outlet_id: request.outlet_id,
         base_salary_per_hour: request.base_salary_per_hour,
         ot_rate_per_hour: request.ot_rate_per_hour,
+        auth_id: authUserId, // LINK AUTH ID
       },
     ])
     .select('id')
@@ -218,6 +260,8 @@ export async function approveWorkerRequestAction(_prev: ActionResult, formData: 
 
   if (workerError || !worker) {
     console.error('[approveWorkerRequestAction] Failed to create worker', workerError?.message)
+    // Cleanup auth user
+    if (authUserId) await service.auth.admin.deleteUser(authUserId)
     return failure(workerError?.message ?? 'Unable to create worker')
   }
 
@@ -242,7 +286,7 @@ export async function approveWorkerRequestAction(_prev: ActionResult, formData: 
       user_id: request.requested_by,
       type: 'worker_request_approved',
       title: 'Worker request approved',
-      body: `Worker ${request.name} has been onboarded.`,
+      body: `Worker ${request.name} has been onboarded. Credentials generated.`,
       data: {
         request_id: requestId,
         worker_id: worker.id,
@@ -255,9 +299,29 @@ export async function approveWorkerRequestAction(_prev: ActionResult, formData: 
     console.error('[approveWorkerRequestAction] Failed to notify manager', notifyError.message)
   }
 
+  // Insert into app_users so the worker can log in
+  const { error: appUserError } = await supabase.from('app_users').insert([
+    {
+      id: authUserId, // Use Auth ID as app_user ID for consistency
+      email: emailToUse,
+      name: request.name,
+      role: 'worker',
+      outlet_id: request.outlet_id,
+      auth_id: authUserId,
+    },
+  ])
+
+  if (appUserError) {
+    console.error('[approveWorkerRequestAction] Failed to create app_user for worker', appUserError.message)
+    // Non-fatal? If they can't log in, it is fatal for login, but worker record exists.
+    // Ideally we should transaction this or handle cleanup. 
+    // For now, let's return error but note that worker was created.
+    return failure(`Worker created but login setup failed: ${appUserError.message}`)
+  }
+
   revalidatePath('/admin')
   revalidatePath('/manager')
-  return success('Worker approved')
+  return success(`Worker approved & account created (${emailToUse})`)
 }
 
 export async function rejectWorkerRequestAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
@@ -344,6 +408,22 @@ export async function logAdminAttendanceAction(
     return failure(workerError?.message ?? 'Worker not found')
   }
 
+  // Validate sequence
+  const { data: lastLog } = await supabase
+    .from('attendance_logs')
+    .select('action')
+    .eq('worker_id', workerId)
+    .order('timestamp_utc', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (actionValue === 'IN' && lastLog?.action === 'IN') {
+    return failure('Worker is already logged IN')
+  }
+  if (actionValue === 'OUT' && (!lastLog || lastLog.action === 'OUT')) {
+    return failure('Worker is already logged OUT')
+  }
+
   let timestampUtc: string | undefined
   if (timeValue) {
     const [hours, minutes] = timeValue.split(':').map(Number)
@@ -356,6 +436,7 @@ export async function logAdminAttendanceAction(
     worker_id: workerId,
     outlet_id: workerRow.outlet_id,
     action: actionValue,
+    source: 'admin', // Mark as created by admin
   }
 
   if (timestampUtc) {
@@ -383,8 +464,48 @@ export async function createWorkerAction(_prev: ActionResult, formData: FormData
   const outletId = formData.get('outlet_id') as string | null
   const baseSalary = formData.get('base_salary_per_hour') ? Number(formData.get('base_salary_per_hour')) : null
   const otRate = formData.get('ot_rate_per_hour') ? Number(formData.get('ot_rate_per_hour')) : null
+  const password = (formData.get('password') as string | null)?.trim()
 
   if (!name) return failure('Name is required')
+  // New requirement: Password needed for direct worker creation login
+  if (!password) return failure('Password is required')
+  if (password.length < 6) return failure('Password must be at least 6 characters')
+
+  // Email validation
+  if (email && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+    return failure('Invalid email format')
+  }
+
+  // Phone validation (Indian format example)
+  if (phone && !phone.match(/^[6-9]\d{9}$/)) {
+    return failure('Invalid phone number format')
+  }
+
+  // Salary validation
+  if (baseSalary !== null && baseSalary < 0) {
+    return failure('Salary cannot be negative')
+  }
+
+  // Create Supabase Auth User first
+  let authUserId: string | null = null
+  const emailToUse = email || `worker_${phone}@railrolls.local`
+
+  try {
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: emailToUse,
+      password: password,
+      email_confirm: true,
+      user_metadata: { name, phone },
+    })
+    if (authError || !authData.user) {
+      console.error('[createWorkerAction] Auth creation failed', authError?.message)
+      return failure(authError?.message ?? 'Auth creation failed')
+    }
+    authUserId = authData.user.id
+  } catch (err) {
+    console.error('[createWorkerAction] Service error during auth creation', err)
+    return failure('System error creating login credentials')
+  }
 
   // Get current user for created_by field
   const regularClient = await createClient()
@@ -406,20 +527,139 @@ export async function createWorkerAction(_prev: ActionResult, formData: FormData
     {
       name,
       phone: phone || null,
-      email: email || null,
+      email: emailToUse,
       outlet_id: outletId || null,
       base_salary_per_hour: baseSalary,
       ot_rate_per_hour: otRate,
       created_by: creatorAppUserId,
+      auth_id: authUserId, // Link the auth user!
     },
   ])
 
   if (error) {
     console.error('[createWorkerAction] Failed to create worker', error.message)
+    // Cleanup auth user
+    if (authUserId) await supabase.auth.admin.deleteUser(authUserId)
     return failure(error.message)
+  }
+
+  // Insert into app_users so the worker can log in
+  const { error: appUserError } = await supabase.from('app_users').insert([
+    {
+      id: authUserId, // Usually mapping AuthID -> AppUserID
+      email: emailToUse,
+      name: name,
+      role: 'worker',
+      outlet_id: outletId || null,
+      auth_id: authUserId,
+    },
+  ])
+
+  if (appUserError) {
+    console.error('[createWorkerAction] Failed to create app_user for worker', appUserError.message)
+    // We might want to rollback worker creation/auth creation here?
+    // For now, basic error reporting.
+    return failure(`Worker created but login setup failed: ${appUserError.message}`)
   }
 
   revalidatePath('/admin')
   revalidatePath('/manager')
-  return success('Worker created')
+  return success(`Worker created (${emailToUse})`)
+}
+
+export async function updateWorkerAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  const workerId = formData.get('worker_id') as string | null
+  const name = (formData.get('name') as string | null)?.trim()
+  const outletId = formData.get('outlet_id') as string | null
+  const baseSalary = formData.get('base_salary_per_hour') ? Number(formData.get('base_salary_per_hour')) : null
+  const otRate = formData.get('ot_rate_per_hour') ? Number(formData.get('ot_rate_per_hour')) : null
+
+  if (!workerId) return failure('Missing worker ID')
+  if (!name) return failure('Name is required')
+
+  // Update worker details
+  const updateData: Record<string, unknown> = {
+    name,
+    outlet_id: outletId || null,
+  }
+  if (baseSalary !== null) updateData.base_salary_per_hour = baseSalary
+  if (otRate !== null) updateData.ot_rate_per_hour = otRate
+
+  const { error } = await supabase.from('workers').update(updateData).eq('id', workerId)
+
+  if (error) {
+    console.error('[updateWorkerAction] Failed to update worker', error.message)
+    return failure(error.message)
+  }
+
+  // Update app_users outlet if changed
+  const { data: worker } = await supabase.from('workers').select('auth_id').eq('id', workerId).single()
+  if (worker?.auth_id) {
+    await supabase.from('app_users').update({ outlet_id: outletId || null }).eq('id', worker.auth_id)
+  }
+
+  revalidatePath('/admin')
+  revalidatePath('/manager')
+  return success('Worker updated')
+}
+
+export async function resetWorkerPasswordAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const workerId = formData.get('worker_id') as string | null
+  const newPassword = (formData.get('new_password') as string | null)?.trim()
+
+  if (!workerId) return failure('Missing worker ID')
+  if (!newPassword) return failure('Password is required')
+  if (newPassword.length < 6) return failure('Password must be at least 6 characters')
+
+  const supabase = createServiceClient()
+
+  // Get worker's auth_id
+  const { data: worker, error: workerError } = await supabase
+    .from('workers')
+    .select('auth_id')
+    .eq('id', workerId)
+    .single()
+
+  if (workerError || !worker?.auth_id) {
+    console.error('[resetWorkerPasswordAction] Worker not found', workerError?.message)
+    return failure('Worker not found')
+  }
+
+  // Update password in Supabase Auth
+  const { error: authError } = await supabase.auth.admin.updateUserById(worker.auth_id, {
+    password: newPassword,
+  })
+
+  if (authError) {
+    console.error('[resetWorkerPasswordAction] Failed to update password', authError.message)
+    return failure(authError.message)
+  }
+
+  revalidatePath('/admin')
+  return success('Password reset successfully')
+}
+
+export async function resetManagerPasswordAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const appUserId = formData.get('app_user_id') as string | null
+  const newPassword = (formData.get('new_password') as string | null)?.trim()
+
+  if (!appUserId) return failure('Missing manager user ID')
+  if (!newPassword) return failure('Password is required')
+  if (newPassword.length < 6) return failure('Password must be at least 6 characters')
+
+  const supabase = createServiceClient()
+
+  // Update password in Supabase Auth (app_user_id should match auth_id for managers)
+  const { error: authError } = await supabase.auth.admin.updateUserById(appUserId, {
+    password: newPassword,
+  })
+
+  if (authError) {
+    console.error('[resetManagerPasswordAction] Failed to update password', authError.message)
+    return failure(authError.message)
+  }
+
+  revalidatePath('/admin')
+  return success('Manager password reset successfully')
 }

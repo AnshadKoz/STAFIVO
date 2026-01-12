@@ -76,11 +76,13 @@ export default async function ManagerPage() {
     timestamp_utc: string
   }
 
-  const attendance = (logs ?? []).map((log: AttendanceLogRow) => ({
-    ...log,
-    worker_name: safeWorkers.find((w: typeof safeWorkers[number]) => w.id === log.worker_id)?.name || '-',
-    outlet_name: safeOutlets.find((o: typeof safeOutlets[number]) => o.id === log.outlet_id)?.name || '-',
-  }))
+  const attendance = (logs ?? [])
+    .map((log: AttendanceLogRow) => ({
+      ...log,
+      worker_name: safeWorkers.find((w: typeof safeWorkers[number]) => w.id === log.worker_id)?.name || '-',
+      outlet_name: safeOutlets.find((o: typeof safeOutlets[number]) => o.id === log.outlet_id)?.name || '-',
+    }))
+    .filter(log => log.worker_name !== '-')
 
   const today = toDateOnly()
   const weekStart = new Date(today)
@@ -175,67 +177,35 @@ export default async function ManagerPage() {
   trendWeekStart.setDate(trendWeekStart.getDate() - 6)
   const trendWeekStartStr = trendWeekStart.toISOString().slice(0, 10)
 
-  const { data: workerHoursRows } = await supabase
-    .from('worker_daily_hours')
-    .select('worker_id,hours_worked')
-    .gte('work_date', trendStartStr)
-
-  const { data: workerOtRows } = await supabase
-    .from('worker_adjustments')
-    .select('worker_id,hours')
-    .eq('kind', 'ot')
-    .gte('effective_date', trendStartStr)
-
-  const workerHourTotals = new Map<string, number>()
-  ;(workerHoursRows ?? []).forEach(row => {
-    if (!row.worker_id) return
-    workerHourTotals.set(row.worker_id, (workerHourTotals.get(row.worker_id) ?? 0) + (row.hours_worked ?? 0))
+  const { data: trendAnalytics } = await supabase.rpc('get_worker_analytics', {
+    start_date: trendStartStr,
   })
 
-  const workerOtTotals = new Map<string, number>()
-  ;(workerOtRows ?? []).forEach(row => {
-    if (!row.worker_id) return
-    workerOtTotals.set(row.worker_id, (workerOtTotals.get(row.worker_id) ?? 0) + (row.hours ?? 0))
-  })
-
-  const { data: workerHoursWeekRows } = await supabase
-    .from('worker_daily_hours')
-    .select('worker_id,hours_worked')
-    .gte('work_date', trendWeekStartStr)
-
-  const { data: workerOtWeekRows } = await supabase
-    .from('worker_adjustments')
-    .select('worker_id,hours')
-    .eq('kind', 'ot')
-    .gte('effective_date', trendWeekStartStr)
-
-  const workerHourTotalsWeek = new Map<string, number>()
-  ;(workerHoursWeekRows ?? []).forEach(row => {
-    if (!row.worker_id) return
-    workerHourTotalsWeek.set(row.worker_id, (workerHourTotalsWeek.get(row.worker_id) ?? 0) + (row.hours_worked ?? 0))
-  })
-
-  const workerOtTotalsWeek = new Map<string, number>()
-  ;(workerOtWeekRows ?? []).forEach(row => {
-    if (!row.worker_id) return
-    workerOtTotalsWeek.set(row.worker_id, (workerOtTotalsWeek.get(row.worker_id) ?? 0) + (row.hours ?? 0))
+  const { data: weeklyAnalytics } = await supabase.rpc('get_worker_analytics', {
+    start_date: trendWeekStartStr,
   })
 
   const workerAnalytics =
-    safeWorkers.map(worker => ({
-      worker_id: worker.id,
-      worker_name: worker.name,
-      total_hours: Number(workerHourTotals.get(worker.id) ?? 0),
-      ot_hours: Number(workerOtTotals.get(worker.id) ?? 0),
-    })) ?? []
+    safeWorkers.map(worker => {
+      const stats = trendAnalytics?.find((s: { worker_id: string }) => s.worker_id === worker.id)
+      return {
+        worker_id: worker.id,
+        worker_name: worker.name,
+        total_hours: Number(stats?.total_hours ?? 0),
+        ot_hours: Number(stats?.ot_hours ?? 0),
+      }
+    }) ?? []
 
   const workerAnalyticsWeekly =
-    safeWorkers.map(worker => ({
-      worker_id: worker.id,
-      worker_name: worker.name,
-      total_hours: Number(workerHourTotalsWeek.get(worker.id) ?? 0),
-      ot_hours: Number(workerOtTotalsWeek.get(worker.id) ?? 0),
-    })) ?? []
+    safeWorkers.map(worker => {
+      const stats = weeklyAnalytics?.find((s: { worker_id: string }) => s.worker_id === worker.id)
+      return {
+        worker_id: worker.id,
+        worker_name: worker.name,
+        total_hours: Number(stats?.total_hours ?? 0),
+        ot_hours: Number(stats?.ot_hours ?? 0),
+      }
+    }) ?? []
 
   const profileWithOutlet = profile
     ? { ...profile, outlet_id: profile.outlet_id ?? managerRecord?.outlet_id ?? null }

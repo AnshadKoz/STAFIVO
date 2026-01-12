@@ -1,7 +1,5 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -10,22 +8,38 @@ class WelcomeScreen extends StatefulWidget {
   State<WelcomeScreen> createState() => _WelcomeScreenState();
 }
 
-class _WelcomeScreenState extends State<WelcomeScreen> {
+class _WelcomeScreenState extends State<WelcomeScreen>
+    with SingleTickerProviderStateMixin {
   Timer? _timer;
+  late AnimationController _controller;
+  late Animation<double> _fade;
 
   @override
   void initState() {
     super.initState();
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+
+    _fade = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeIn,
+    );
+
+    _controller.forward();
     _timer = Timer(const Duration(seconds: 2), _goToCheckIn);
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _controller.dispose();
     super.dispose();
   }
 
-  Future<void> _goToCheckIn() async {
+  void _goToCheckIn() {
     if (!mounted) return;
     Navigator.of(context).pushReplacementNamed('/check');
   }
@@ -33,52 +47,71 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 150,
-                height: 150,
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.08),
-                  shape: BoxShape.circle,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.white,
+              scheme.primary.withValues(alpha: 0.04),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fade,
+            child: Column(
+              children: [
+                const Spacer(flex: 2),
+                Image.asset(
+                  'assets/Logo_Rail_rolls-removebg-preview.png',
+                  height: 120,
                 ),
-                alignment: Alignment.center,
-                child: Padding(
-                  padding: const EdgeInsets.all(22),
-                  child: Image.asset(
-                    'assets/Logo_Rail_rolls.png',
-                    fit: BoxFit.contain,
+                const SizedBox(height: 32),
+                Text(
+                  'Welcome Back',
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineMedium
+                      ?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: scheme.primary,
+                      ),
+                ),
+                const SizedBox(height: 14),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    'Checking workers and outlets,\ngetting everything ready for you.',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyLarge
+                        ?.copyWith(
+                          color:
+                              scheme.onSurface.withValues(alpha: 0.65),
+                          height: 1.4,
+                        ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 40),
-              Text(
-                'Welcome Back',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: scheme.primary,
-                    ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Checking workers and getting things ready...',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: scheme.onSurface.withValues(alpha: 0.7),
-                    ),
-              ),
-              const SizedBox(height: 32),
-              LinearProgressIndicator(
-                color: scheme.primary,
-                backgroundColor: scheme.primary.withValues(alpha: 0.1),
-                minHeight: 4,
-              ),
-            ],
+                const Spacer(),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 48),
+                  child: LinearProgressIndicator(
+                    minHeight: 4,
+                    borderRadius: BorderRadius.circular(8),
+                    color: scheme.primary,
+                    backgroundColor:
+                        scheme.primary.withValues(alpha: 0.12),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),

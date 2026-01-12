@@ -20,6 +20,7 @@ type WorkerInfo = {
   name: string
   base_salary_per_hour: number | null
   ot_rate_per_hour: number | null
+  outlets: { name: string } | null
 }
 
 type DailyRow = { work_date: string; hours_worked: number | null }
@@ -31,6 +32,7 @@ type AdjustmentRow = {
   hours: number | null
   amount: number | null
   note: string | null
+  fine_appeals?: { id: string; status: 'pending' | 'approved' | 'rejected' } | { id: string; status: 'pending' | 'approved' | 'rejected' }[] | null
 }
 
 type DocumentRow = {
@@ -52,7 +54,7 @@ type WorkerDashboardClientProps = {
   authUserId: string
 }
 
-const actionInit: WorkerActionResult = { status: 'success' }
+const actionInit: WorkerActionResult = { status: 'idle' }
 
 const currency = (value: number | null | undefined) =>
   typeof value === 'number'
@@ -121,7 +123,7 @@ export default function WorkerDashboardClient({
 
   const decorateDocuments = async (docs: DocumentRow[]) =>
     Promise.all(
-      docs.map(async doc => {
+      (docs ?? []).map(async doc => {
         const { data } = await supabase.storage.from('worker-docs').createSignedUrl(doc.storage_path, 60 * 60)
         return { ...doc, signedUrl: data?.signedUrl ?? null }
       })
@@ -172,7 +174,6 @@ export default function WorkerDashboardClient({
         kind,
         storage_path: filePath,
         original_name: file.name,
-        uploaded_by: authUserId,
       },
     ])
 
@@ -193,14 +194,57 @@ export default function WorkerDashboardClient({
     event.target.value = ''
   }
 
+  const [deleteCandidate, setDeleteCandidate] = useState<DocumentRow | null>(null)
+
+  const confirmDelete = (doc: DocumentRow) => {
+    setDeleteCandidate(doc)
+  }
+
+  const executeDelete = async () => {
+    if (!deleteCandidate) return
+
+    const { error: storageError } = await supabase.storage.from('worker-docs').remove([deleteCandidate.storage_path])
+    if (storageError) {
+      console.error('Delete storage failed', storageError.message)
+      showToast({ type: 'error', title: 'Delete failed', description: 'Could not delete file from storage.' })
+      setDeleteCandidate(null)
+      return
+    }
+
+    const { error: dbError } = await supabase.from('worker_documents').delete().eq('id', deleteCandidate.id)
+    if (dbError) {
+      console.error('Delete db failed', dbError.message)
+      showToast({ type: 'error', title: 'Delete failed', description: 'Could not delete record.' })
+      setDeleteCandidate(null)
+      return
+    }
+
+    showToast({ type: 'success', title: 'Deleted', description: 'Document removed.' })
+    setDeleteCandidate(null)
+
+    const { data: refreshed } = await supabase
+      .from('worker_documents')
+      .select('id,kind,storage_path,original_name,created_at')
+      .eq('worker_id', worker.id)
+      .order('created_at', { ascending: false })
+    const signed = await decorateDocuments(refreshed ?? [])
+    setDocuments(signed)
+  }
+
   const openAppealModal = (adjustment: AdjustmentRow) => {
     setAppealAdjustment(adjustment)
     setAppealReason('')
   }
 
+  // ... existing closeAppealModal ...
+
   const closeAppealModal = () => {
     setAppealAdjustment(null)
     setAppealReason('')
+  }
+
+  const closeDeleteModal = () => {
+    setDeleteCandidate(null)
   }
 
   const signOut = async () => {
@@ -214,9 +258,20 @@ export default function WorkerDashboardClient({
         <header className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-emerald-600">Rail Rolls</p>
-              <h1 className="mt-2 text-3xl font-semibold text-gray-900">Hi, {worker.name}</h1>
-              <p className="text-sm text-gray-500">Keep an eye on your shifts, appeals, and documents.</p>
+              <div className="flex items-center gap-4">
+                <img src="/logo-removebg-preview.png" alt="Rail Rolls" className="h-14 w-auto object-contain" />
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 leading-none">
+                    {worker.name}
+                    <span className="ml-2 rounded-full bg-emerald-100 px-3 py-0.5 text-sm font-medium text-emerald-800 align-middle">
+                      Worker
+                    </span>
+                  </h1>
+                  <p className="mt-1 text-sm font-medium text-gray-500">
+                    My Dashboard {worker.outlets?.name ? `· ${worker.outlets.name}` : ''}
+                  </p>
+                </div>
+              </div>
             </div>
             <button
               type="button"
@@ -302,13 +357,46 @@ export default function WorkerDashboardClient({
                         : currency(adj.amount)}
                     </p>
                     {adj.kind === 'fine' ? (
-                      <button
-                        type="button"
-                        onClick={() => openAppealModal(adj)}
-                        className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
-                      >
-                        Appeal
-                      </button>
+                      (() => {
+                        // Handle single or array response from Supabase join
+                        const appeal = Array.isArray(adj.fine_appeals) ? adj.fine_appeals[0] : adj.fine_appeals
+
+                        if (appeal?.status === 'approved') {
+                          return (
+                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                              Resolved
+                            </span>
+                          )
+                        }
+
+                        if (appeal?.status === 'pending') {
+                          return (
+                            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
+                              Appeal Pending
+                            </span>
+                          )
+                        }
+
+                        if (appeal?.status === 'rejected') {
+                          return (
+                            <div className="flex items-center gap-2">
+                              <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+                                Appeal Rejected
+                              </span>
+                            </div>
+                          )
+                        }
+
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => openAppealModal(adj)}
+                            className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                          >
+                            Appeal
+                          </button>
+                        )
+                      })()
                     ) : null}
                   </div>
                 </div>
@@ -320,45 +408,66 @@ export default function WorkerDashboardClient({
         <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">My documents</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {(['bank_passbook', 'health_card'] as DocumentRow['kind'][]).map(kind => (
-              <div key={kind} className="rounded-2xl border border-gray-100 p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {kind === 'bank_passbook' ? 'Bank Passbook' : 'Health Card'}
-                    </p>
-                    <p className="text-xs text-gray-500">Upload clear photos or PDFs.</p>
+            {(['bank_passbook', 'health_card'] as DocumentRow['kind'][]).map(kind => {
+              const hasDocs = (documentsByKind[kind] ?? []).length > 0
+              return (
+                <div key={kind} className="rounded-2xl border border-gray-100 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-gray-900">
+                          {kind === 'bank_passbook' ? 'Bank Passbook' : 'Health Card'}
+                        </p>
+                        {hasDocs ? (
+                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
+                            Uploaded
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-xs text-gray-500">Upload clear photos or PDFs.</p>
+                    </div>
+                    <label className="cursor-pointer rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
+                      {uploading === kind ? 'Uploading…' : hasDocs ? 'Re-upload' : 'Upload'}
+                      <input
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="hidden"
+                        onChange={event => handleFileUpload(kind, event)}
+                      />
+                    </label>
                   </div>
-                  <label className="cursor-pointer rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
-                    {uploading === kind ? 'Uploading…' : 'Upload'}
-                    <input
-                      type="file"
-                      accept="image/*,application/pdf"
-                      className="hidden"
-                      onChange={event => handleFileUpload(kind, event)}
-                    />
-                  </label>
+                  <div className="mt-3 space-y-2">
+                    {hasDocs ? (
+                      documentsByKind[kind].map(doc => (
+                        <div key={doc.id} className="flex items-center gap-2">
+                          <a
+                            href={doc.signedUrl ?? '#'}
+                            className="flex flex-1 items-center justify-between rounded-xl border border-gray-100 px-3 py-2 text-xs text-emerald-700 hover:bg-emerald-50"
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <span className="truncate max-w-[180px]">{doc.original_name}</span>
+                            <span className="shrink-0 ml-2">{new Date(doc.created_at).toLocaleDateString('en-IN')}</span>
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => confirmDelete(doc)}
+                            className="rounded-xl border border-red-100 bg-white p-2 text-red-600 hover:bg-red-50 hover:border-red-200 transition-colors"
+                            title="Delete document"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-gray-500">No files yet.</p>
+                    )}
+                  </div>
                 </div>
-                <div className="mt-3 space-y-2">
-                  {(documentsByKind[kind] ?? []).length === 0 ? (
-                    <p className="text-xs text-gray-500">No files yet.</p>
-                  ) : (
-                    documentsByKind[kind].map(doc => (
-                      <a
-                        key={doc.id}
-                        href={doc.signedUrl ?? '#'}
-                        className="flex items-center justify-between rounded-xl border border-gray-100 px-3 py-2 text-xs text-emerald-700 hover:bg-emerald-50"
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <span>{doc.original_name}</span>
-                        <span>{new Date(doc.created_at).toLocaleDateString('en-IN')}</span>
-                      </a>
-                    ))
-                  )}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </section>
       </div>
@@ -382,11 +491,10 @@ export default function WorkerDashboardClient({
           <button
             type="submit"
             disabled={isAppealPending}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold text-white shadow ${
-              isAppealPending
-                ? 'cursor-not-allowed bg-emerald-400'
-                : 'bg-emerald-600 hover:bg-emerald-700'
-            }`}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold text-white shadow ${isAppealPending
+              ? 'cursor-not-allowed bg-emerald-400'
+              : 'bg-emerald-600 hover:bg-emerald-700'
+              }`}
           >
             {isAppealPending ? 'Submitting...' : 'Submit appeal'}
           </button>
@@ -394,6 +502,30 @@ export default function WorkerDashboardClient({
             <p className="text-xs text-red-500">{appealState.message}</p>
           ) : null}
         </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(deleteCandidate)}
+        onClose={closeDeleteModal}
+        title="Delete Document"
+        description="Are you sure you want to delete this document? This action cannot be undone."
+      >
+        <div className="flex items-center justify-end gap-3 pt-2">
+          <button
+            type="button"
+            onClick={closeDeleteModal}
+            className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={executeDelete}
+            className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
+          >
+            Delete
+          </button>
+        </div>
       </Modal>
     </div>
   )

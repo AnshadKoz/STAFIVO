@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/utils/supabase/server'
 
 export type ManagerActionResult = {
-  status: 'success' | 'error'
+  status: 'idle' | 'success' | 'error'
   message?: string
 }
 
@@ -408,6 +408,22 @@ export async function logAttendanceAction(
     return failure(workerError?.message ?? 'Worker not found')
   }
 
+  // Validate sequence
+  const { data: lastLog } = await supabase
+    .from('attendance_logs')
+    .select('action')
+    .eq('worker_id', workerId)
+    .order('timestamp_utc', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (actionValue === 'IN' && lastLog?.action === 'IN') {
+    return failure('Worker is already logged IN')
+  }
+  if (actionValue === 'OUT' && (!lastLog || lastLog.action === 'OUT')) {
+    return failure('Worker is already logged OUT')
+  }
+
   let timestampUtc: string | undefined
   if (timeValue) {
     const [hours, minutes] = timeValue.split(':').map(Number)
@@ -420,6 +436,7 @@ export async function logAttendanceAction(
     worker_id: workerId,
     outlet_id: workerRow.outlet_id,
     action: actionValue,
+    source: 'manager', // Mark as created by manager
   }
 
   if (timestampUtc) {
@@ -435,4 +452,156 @@ export async function logAttendanceAction(
   revalidatePath('/manager')
   revalidatePath('/admin')
   return success('Attendance saved')
+}
+
+// Manager payroll preview - read-only, filtered by manager's outlet
+export async function previewManagerPayrollAction(
+  _prevState: { status: 'idle' | 'success' | 'error'; message?: string; month?: string; rows?: any[] },
+  formData: FormData
+): Promise<{ status: 'idle' | 'success' | 'error'; message?: string; month?: string; rows?: any[] }> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    return { status: 'error', message: 'Not authenticated' }
+  }
+
+  // Get manager's outlet
+  const { data: profile } = await supabase
+    .from('app_users')
+    .select('id,outlet_id')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.outlet_id) {
+    return { status: 'error', message: 'No outlet assigned to manager' }
+  }
+
+  const month = formData.get('month') as string | null
+
+  if (!month) {
+    return { status: 'error', message: 'Missing payroll month' }
+  }
+
+  const [yearStr, monthStr] = month.split('-')
+  const year = Number(yearStr)
+  const monthIndex = Number(monthStr) - 1
+
+  if (Number.isNaN(year) || Number.isNaN(monthIndex)) {
+    return { status: 'error', message: 'Invalid month format' }
+  }
+
+  const monthStart = new Date(Date.UTC(year, monthIndex, 1))
+  const nextMonthStart = new Date(Date.UTC(year, monthIndex + 1, 1))
+  const monthStartISO = monthStart.toISOString().slice(0, 10)
+  const nextMonthISO = nextMonthStart.toISOString().slice(0, 10)
+
+  // 1. Fetch Workers for manager's outlet only
+  const { data: workers, error: workersError } = await supabase
+    .from('workers')
+    .select('id,name,outlet_id,base_salary_per_hour,ot_rate_per_hour')
+    .eq('outlet_id', profile.outlet_id)
+    .order('name')
+
+  if (workersError || !workers) {
+    return { status: 'error', message: workersError?.message || 'Failed to load workers' }
+  }
+
+  const workerIds = workers.map(w => w.id)
+
+  if (workerIds.length === 0) {
+    return { status: 'success', message: 'No workers in your outlet', month, rows: [] }
+  }
+
+  // 2. Fetch Hours
+  const { data: hoursData, error: hoursError } = await supabase
+    .from('worker_daily_hours')
+    .select('worker_id,hours_worked')
+    .gte('work_date', monthStartISO)
+    .lt('work_date', nextMonthISO)
+    .in('worker_id', workerIds)
+
+  if (hoursError) {
+    return { status: 'error', message: hoursError.message }
+  }
+
+  // 3. Fetch Adjustments
+  const { data: adjData, error: adjError } = await supabase
+    .from('worker_adjustments')
+    .select('worker_id,kind,hours,amount')
+    .gte('effective_date', monthStartISO)
+    .lt('effective_date', nextMonthISO)
+    .in('worker_id', workerIds)
+
+  if (adjError) {
+    return { status: 'error', message: adjError.message }
+  }
+
+  // 4. Fetch Outlet name
+  const { data: outlet } = await supabase
+    .from('outlets')
+    .select('id,name')
+    .eq('id', profile.outlet_id)
+    .single()
+
+  const outletName = outlet?.name || null
+
+  // 5. Aggregate Data
+  const hoursMap = new Map<string, number>()
+  hoursData?.forEach(row => {
+    if (row.worker_id) {
+      hoursMap.set(row.worker_id, (hoursMap.get(row.worker_id) ?? 0) + (row.hours_worked ?? 0))
+    }
+  })
+
+  const adjMap = new Map<string, { otHours: number, incentives: number, fines: number }>()
+
+  adjData?.forEach(adj => {
+    if (!adj.worker_id) return
+    const current = adjMap.get(adj.worker_id) ?? { otHours: 0, incentives: 0, fines: 0 }
+
+    if (adj.kind === 'ot') {
+      current.otHours += (adj.hours ?? 0)
+    } else if (adj.kind === 'incentive') {
+      current.incentives += (adj.amount ?? 0)
+    } else if (adj.kind === 'fine' || adj.kind === 'deduction') {
+      current.fines += (adj.amount ?? 0)
+    }
+    adjMap.set(adj.worker_id, current)
+  })
+
+  // 6. Calculate Rows
+  const rows = workers.map(w => {
+    const totalHours = hoursMap.get(w.id) ?? 0
+    const adjustments = adjMap.get(w.id) ?? { otHours: 0, incentives: 0, fines: 0 }
+
+    const baseSalary = totalHours * (w.base_salary_per_hour ?? 0)
+    const overtime = adjustments.otHours * (w.ot_rate_per_hour ?? 0)
+    const incentives = adjustments.incentives
+    const fines = adjustments.fines
+
+    const total = baseSalary + overtime + incentives - fines
+
+    return {
+      workerId: w.id,
+      workerName: w.name,
+      outletName: outletName,
+      payrollMonth: month,
+      workedHours: totalHours,
+      baseSalary,
+      overtime,
+      incentives,
+      fines,
+      total
+    }
+  })
+
+  return {
+    status: 'success',
+    message: 'Preview generated (read-only)',
+    month,
+    rows
+  }
 }

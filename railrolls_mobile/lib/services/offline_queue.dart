@@ -68,9 +68,12 @@ class OfflineQueue {
 
   static Future<void> deleteIds(List<int> ids) async {
     if (ids.isEmpty) return;
-    final placeholders = List.filled(ids.length, '?').join(',');
     final db = await _dbOrOpen();
-    await db.rawDelete('delete from queued_logs where id in ($placeholders)', ids);
+    final batch = db.batch();
+    for (final id in ids) {
+      batch.delete('queued_logs', where: 'id = ?', whereArgs: [id]);
+    }
+    await batch.commit(noResult: true);
   }
 
   static Future<void> markFailed({
