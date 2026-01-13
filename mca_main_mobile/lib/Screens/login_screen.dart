@@ -98,6 +98,14 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // WorkForge Logo
+                  Image.asset(
+                    'assets/workforge_logo.png',
+                    width: 120,
+                    height: 120,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 16),
                   Text(
                     'WorkForge Worker Login',
                     style: TextStyle(

@@ -67,7 +67,7 @@ class _WelcomeScreenState extends State<WelcomeScreen>
               children: [
                 const Spacer(flex: 2),
                 Image.asset(
-                  'assets/Logo_Rail_rolls-removebg-preview.png',
+                  'assets/workforge_logo.png',
                   height: 120,
                 ),
                 const SizedBox(height: 32),

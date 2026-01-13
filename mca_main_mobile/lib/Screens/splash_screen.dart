@@ -80,7 +80,7 @@ class _SplashScreenState extends State<SplashScreen>
                   ),
                   padding: const EdgeInsets.all(26),
                   child: Image.asset(
-                    'assets/Logo_Rail_rolls-removebg-preview.png',
+                    'assets/workforge_logo.png',
                     fit: BoxFit.contain,
                   ),
                 ),
