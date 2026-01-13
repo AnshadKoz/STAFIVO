@@ -1,46 +1,86 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
- .env
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# ===============================
+# ENV / SECRETS (VERY IMPORTANT)
+# ===============================
+.env
+.env.*
+*.env
 
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
+# ===============================
+# Flutter / Dart
+# ===============================
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
+.packages
 .pub-cache/
 .pub/
-/build/
+build/
+coverage/
 
-# Symbolication related
-app.*.symbols
+# ===============================
+# Platform specific
+# ===============================
+android/.gradle/
+android/local.properties
+android/key.properties
+android/app/debug/
+android/app/profile/
+android/app/release/
 
-# Obfuscation related
-app.*.map.json
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/.last_build_id
+ios/Flutter/ephemeral/
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
+macos/Flutter/ephemeral/
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
+
+# ===============================
+# Web
+# ===============================
+web/.dart_tool/
+web/build/
+
+# ===============================
+# IDEs & Editors
+# ===============================
+.vscode/
+.idea/
+*.iml
+*.ipr
+*.iws
+.atom/
+
+# ===============================
+# OS files
+# ===============================
+.DS_Store
+Thumbs.db
+
+# ===============================
+# Logs & temp
+# ===============================
+*.log
+*.swp
+*.tmp
+
+# ===============================
+# Supabase
+# ===============================
+supabase/.branches
+supabase/.temp
+
+# ===============================
+# Node / Web (if any)
+# ===============================
+node_modules/
+
+# ===============================
+# Misc
+# ===============================
+*.class
+*.pyc
+.history
+.svn/
+.swiftpm/
