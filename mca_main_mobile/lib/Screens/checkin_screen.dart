@@ -16,7 +16,7 @@ import '../navigation/route_observer.dart';
 import '../services/offline_queue.dart';
 import '../services/supabase_repo.dart';
 import '../widgets/face_frame_overlay.dart';
-import '../widgets/railrolls_app_bar.dart';
+import '../widgets/workforge_app_bar.dart';
 import '../widgets/alert_dialog_helper.dart';
 
 class CheckInScreen extends StatefulWidget {
@@ -1129,7 +1129,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     final previewHeight = size.height * 0.38;
 
     return Scaffold(
-      appBar: railRollsAppBar(context, 'Check-in / Check-out', implyLeading: false),
+      appBar: workForgeAppBar(context, 'Check-in / Check-out', implyLeading: false),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),

@@ -1,6 +1,8 @@
-# railrolls_mobile
+# WorkForge Mobile
 
-Face-enrolled attendance capture app for Rail Rolls.
+Face-enrolled attendance capture app for WorkForge.
+
+> **Note**: WorkForge is an academic MCA project inspired by a real-world workforce management system.
 
 ## Face embedding Edge Function (stub)
 

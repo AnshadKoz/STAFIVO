@@ -19,11 +19,11 @@ Future<void> main() async {
 
   await SyncService.start();
 
-  runApp(const RailRollsApp());
+  runApp(const WorkForgeApp());
 }
 
-class RailRollsApp extends StatelessWidget {
-  const RailRollsApp({super.key});
+class WorkForgeApp extends StatelessWidget {
+  const WorkForgeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +32,7 @@ class RailRollsApp extends StatelessWidget {
       brightness: Brightness.light,
     );
     return MaterialApp(
-      title: 'RailRolls Worker App',
+      title: 'WorkForge Worker App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: scheme,

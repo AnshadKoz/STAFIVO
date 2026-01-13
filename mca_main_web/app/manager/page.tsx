@@ -22,7 +22,7 @@ export default async function ManagerPage() {
   const { data: profile } = await supabase
     .from('app_users')
     .select('id, role, outlet_id, name')
-    .eq('id', user.id)
+    .eq('auth_id', user.id)
     .single()
 
   type ManagerRecordRow = {
@@ -32,11 +32,11 @@ export default async function ManagerPage() {
     outlet?: { id: string; name: string | null } | null
   }
 
-  const { data: managerRecordRaw } = await supabase
+  const { data: managerRecordRaw } = profile ? await supabase
     .from('managers')
     .select('id,outlet_id,is_active,outlet:outlets(id,name)')
-    .eq('app_user_id', user.id)
-    .maybeSingle()
+    .eq('app_user_id', profile.id)
+    .maybeSingle() : { data: null }
   const managerRecord = (managerRecordRaw as ManagerRecordRow | null) ?? null
 
   const { data: outlets } = await supabase.from('outlets').select('id,name').order('name')

@@ -40,7 +40,7 @@ export default async function WorkerPage() {
     redirect('/login')
   }
 
-  const { data: appUser } = await supabase.from('app_users').select('role').eq('id', user.id).single()
+  const { data: appUser } = await supabase.from('app_users').select('role').eq('auth_id', user.id).single()
   if (!appUser || appUser.role !== 'worker') {
     redirect('/')
   }

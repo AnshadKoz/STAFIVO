@@ -2,7 +2,9 @@
 ---
 
 ```markdown
- 🚆 Rail Rolls – Worker Attendance & Payroll System
+# 🔧 WorkForge – Worker Attendance & Payroll System
+
+> **Note**: WorkForge is an academic MCA project inspired by a real-world workforce management system.
 
 A **smart attendance & payroll management system** built for **QSR (Quick Service Restaurant) chains** to efficiently handle **worker attendance, salary tracking, and payroll automation** — all with **face authentication** and **GPS validation**.
 

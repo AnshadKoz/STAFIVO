@@ -40,7 +40,7 @@ export default function LoginPage() {
       <div className="pointer-events-none absolute inset-0 flex w-full items-center justify-center overflow-hidden">
         <div className="flex flex-1 justify-end pr-4 md:pr-0">
           <h1 className="select-none text-6xl font-black uppercase text-emerald-950/10 sm:text-8xl md:text-9xl lg:text-[10rem] xl:text-[11rem]">
-            Rail
+            Work
           </h1>
         </div>
 
@@ -49,7 +49,7 @@ export default function LoginPage() {
 
         <div className="flex flex-1 justify-start pl-4 md:pl-0">
           <h1 className="select-none text-6xl font-black uppercase text-emerald-950/10 sm:text-8xl md:text-9xl lg:text-[10rem] xl:text-[11rem]">
-            Rolls
+            Forge
           </h1>
         </div>
       </div>
@@ -66,7 +66,7 @@ export default function LoginPage() {
 
       <div className="mx-auto max-w-md rounded-3xl border border-emerald-100 bg-white/90 p-8 shadow-xl backdrop-blur">
         <div className="mb-8 flex flex-col items-center text-center">
-          <img src="/logo-removebg-preview.png" alt="Rail Rolls" className="h-20 w-auto object-contain" />
+          <img src="/workforge-logo.png" alt="WorkForge" className="h-20 w-auto object-contain" />
           <h1 className="mt-4 text-2xl font-semibold text-gray-900">
             <span className="text-emerald-600">Console</span> Access
           </h1>

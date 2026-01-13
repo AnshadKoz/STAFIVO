@@ -32,7 +32,7 @@ export default async function AdminPage() {
   const { data: profile } = await supabase
     .from('app_users')
     .select('id, role, outlet_id, name')
-    .eq('id', user.id)
+    .eq('auth_id', user.id)
     .single()
 
   if (!profile) {
@@ -108,9 +108,9 @@ export default async function AdminPage() {
   const managerUserIds = (managerRows ?? []).map(row => row.app_user_id)
   const { data: managerUsers } = managerUserIds.length
     ? await supabase
-        .from('app_users')
-        .select('id,name,email')
-        .in('id', managerUserIds)
+      .from('app_users')
+      .select('id,name,email')
+      .in('id', managerUserIds)
     : { data: [] }
 
   const managerUserMap = new Map<string, { name: string | null; email: string | null }>()
@@ -159,18 +159,18 @@ export default async function AdminPage() {
   safeWorkers.forEach(worker => workerOutletMap.set(worker.id, worker.outlet_id))
 
   const hourTotals = new Map<string, number>()
-  ;(hourRows ?? []).forEach(row => {
-    const outletId = workerOutletMap.get(row.worker_id ?? '')
-    if (!outletId) return
-    hourTotals.set(outletId, (hourTotals.get(outletId) ?? 0) + (row.hours_worked ?? 0))
-  })
+    ; (hourRows ?? []).forEach(row => {
+      const outletId = workerOutletMap.get(row.worker_id ?? '')
+      if (!outletId) return
+      hourTotals.set(outletId, (hourTotals.get(outletId) ?? 0) + (row.hours_worked ?? 0))
+    })
 
   const otTotals = new Map<string, number>()
-  ;(otRows ?? []).forEach(row => {
-    const outletId = row.outlet_id ?? workerOutletMap.get(row.worker_id ?? '') ?? null
-    if (!outletId) return
-    otTotals.set(outletId, (otTotals.get(outletId) ?? 0) + (row.hours ?? 0))
-  })
+    ; (otRows ?? []).forEach(row => {
+      const outletId = row.outlet_id ?? workerOutletMap.get(row.worker_id ?? '') ?? null
+      if (!outletId) return
+      otTotals.set(outletId, (otTotals.get(outletId) ?? 0) + (row.hours ?? 0))
+    })
 
   const outletAnalytics =
     safeOutlets.map(outlet => ({
@@ -188,7 +188,7 @@ export default async function AdminPage() {
       initialAttendance={attendance}
       hoursSummary={{ weeklyHours, monthlyHours }}
       userId={user.id}
-      dashboardTitle="Rail Rolls · Admin Dashboard"
+      dashboardTitle="WorkForge · Admin Dashboard"
       workerRequests={pendingRequests ?? []}
       adminManagerRows={adminManagers}
       managerCandidates={managerCandidates ?? []}

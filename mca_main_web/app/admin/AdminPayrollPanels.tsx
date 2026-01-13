@@ -171,7 +171,7 @@ const PayslipCard = ({ state, onPrint }: { state: PayrollSlipState, onPrint?: ()
     >
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
         <div>
-          <h2 className="text-xl font-semibold">Rail Rolls · Payslip</h2>
+          <h2 className="text-xl font-semibold">WorkForge · Payslip</h2>
           <p className="text-sm text-gray-500">
             Payroll for {formatMonthYear(slip.payrollMonth)}
           </p>

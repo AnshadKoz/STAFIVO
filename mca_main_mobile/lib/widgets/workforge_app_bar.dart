@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-PreferredSizeWidget railRollsAppBar(
+PreferredSizeWidget workForgeAppBar(
   BuildContext context,
   String title, {
   bool implyLeading = true,

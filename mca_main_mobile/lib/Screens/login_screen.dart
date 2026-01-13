@@ -99,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Rail Rolls Worker Login',
+                    'WorkForge Worker Login',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,

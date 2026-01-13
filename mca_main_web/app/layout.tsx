@@ -16,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Rail Rolls Console',
-  description: 'Operations console for the Rail Rolls workforce platform.',
+  title: 'WorkForge Console',
+  description: 'Operations console for the WorkForge workforce platform.',
 }
 
 export default function RootLayout({

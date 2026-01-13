@@ -1,4 +1,4 @@
-name: railrolls_mobile
+name: workforge_mobile
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -75,7 +75,7 @@ flutter:
   assets:
     - .env
     - assets/models/mobilefacenet.tflite
-    - assets/Logo_Rail_rolls-removebg-preview.png
+    - assets/workforge_logo.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -111,7 +111,7 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/Logo_Rail_rolls.png
-  adaptive_icon_foreground: assets/Logo_Rail_rolls.png
+  image_path: assets/workforge_logo.png
+  adaptive_icon_foreground: assets/workforge_logo.png
   adaptive_icon_background: "#FFFFFF"
   remove_alpha_ios: true

@@ -87,7 +87,7 @@ class _SplashScreenState extends State<SplashScreen>
               ),
               const SizedBox(height: 28),
               Text(
-                'Rail Rolls Worker App',
+                'WorkForge Worker App',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: scheme.primary,
