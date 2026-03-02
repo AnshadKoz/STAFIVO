@@ -146,7 +146,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full rounded-2xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-700 disabled:opacity-60"
           >
-            {loading ? 'Verifying credentials...' : 'Sign in'}
+            {loading ? 'Authenticating access...' : 'Sign in'}
           </button>
         </form>
 
