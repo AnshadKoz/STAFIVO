@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'WorkForge Console',
-  description: 'Operations console for the WorkForge workforce platform.',
+  description: 'Operations console for the WorkForge workforce platform and Worker app.',
 }
 
 export default function RootLayout({
