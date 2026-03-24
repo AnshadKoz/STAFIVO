@@ -44,15 +44,27 @@ type DocumentRow = {
   signedUrl?: string | null
 }
 
+type PayrollRecord = {
+  id: string;
+  payroll_month: string;
+  base_salary: number;
+  overtime: number;
+  incentives: number;
+  fines: number;
+  calculated_total: number;
+  created_at: string;
+};
+
 type WorkerDashboardClientProps = {
-  worker: WorkerInfo
-  weeklyHours: number
-  monthlyHours: number
-  dailyRows: DailyRow[]
-  adjustments: AdjustmentRow[]
-  documents: DocumentRow[]
-  authUserId: string
-}
+  worker: WorkerInfo;
+  weeklyHours: number;
+  monthlyHours: number;
+  dailyRows: DailyRow[];
+  adjustments: AdjustmentRow[];
+  documents: DocumentRow[];
+  payrollRecords: PayrollRecord[];
+  authUserId: string;
+};
 
 const actionInit: WorkerActionResult = { status: 'idle' }
 
@@ -71,6 +83,7 @@ export default function WorkerDashboardClient({
   dailyRows,
   adjustments,
   documents: initialDocuments,
+  payrollRecords,
   authUserId,
 }: WorkerDashboardClientProps) {
   const [documents, setDocuments] = useState<DocumentRow[]>([])
@@ -330,27 +343,62 @@ export default function WorkerDashboardClient({
           </div>
         </section>
 
+        {/* Salary History — full width so the 6-column table never overflows */}
         <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Recent adjustments</h2>
-            <p className="text-sm text-gray-500">Includes OT, fines, incentives, deductions.</p>
+          <h2 className="text-lg font-semibold">Salary History</h2>
+          <p className="mt-1 text-sm text-gray-500">All payroll records for your account</p>
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-gray-100">
+            {payrollRecords.length === 0 ? (
+              <p className="p-4 text-sm text-gray-500">No salary records yet.</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-600">
+                    <th className="px-4 py-3 text-left font-semibold">Month</th>
+                    <th className="px-4 py-3 text-right font-semibold">Base</th>
+                    <th className="px-4 py-3 text-right font-semibold">OT</th>
+                    <th className="px-4 py-3 text-right font-semibold">Incentives</th>
+                    <th className="px-4 py-3 text-right font-semibold">Fines</th>
+                    <th className="px-4 py-3 text-right font-semibold text-emerald-700">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payrollRecords.map((rec) => (
+                    <tr key={rec.id} className="border-t border-gray-100 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium">{rec.payroll_month}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{currency(rec.base_salary)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{currency(rec.overtime)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{currency(rec.incentives)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">{currency(rec.fines)}</td>
+                      <td className="px-4 py-3 text-right font-bold tabular-nums text-emerald-700">{currency(rec.calculated_total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
-          <div className="mt-4 space-y-3">
+        </section>
+
+        {/* Recent Adjustments — full width below */}
+        <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Recent adjustments</h2>
+          <p className="mt-1 text-sm text-gray-500">Includes OT, fines, incentives, deductions.</p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {adjustments.length === 0 ? (
               <p className="text-sm text-gray-500">No adjustments yet.</p>
             ) : (
               adjustments.map(adj => (
                 <div
                   key={adj.id}
-                  className="rounded-2xl border border-gray-100 px-4 py-3 shadow-sm sm:flex sm:items-center sm:justify-between"
+                  className="rounded-2xl border border-gray-100 px-4 py-3 shadow-sm flex items-center justify-between gap-3"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900">
                       {adj.kind.toUpperCase()} · {new Date(adj.effective_date).toLocaleDateString('en-IN')}
                     </p>
-                    <p className="text-xs text-gray-500">{adj.note ?? '—'}</p>
+                    <p className="text-xs text-gray-500 truncate">{adj.note ?? '—'}</p>
                   </div>
-                  <div className="mt-3 flex items-center gap-3 sm:mt-0">
+                  <div className="flex shrink-0 items-center gap-3">
                     <p className="text-sm font-semibold text-gray-900">
                       {adj.kind === 'ot'
                         ? `${(adj.hours ?? 0).toFixed(1)} hrs`
@@ -358,7 +406,6 @@ export default function WorkerDashboardClient({
                     </p>
                     {adj.kind === 'fine' ? (
                       (() => {
-                        // Handle single or array response from Supabase join
                         const appeal = Array.isArray(adj.fine_appeals) ? adj.fine_appeals[0] : adj.fine_appeals
 
                         if (appeal?.status === 'approved') {
@@ -368,7 +415,6 @@ export default function WorkerDashboardClient({
                             </span>
                           )
                         }
-
                         if (appeal?.status === 'pending') {
                           return (
                             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
@@ -376,17 +422,13 @@ export default function WorkerDashboardClient({
                             </span>
                           )
                         }
-
                         if (appeal?.status === 'rejected') {
                           return (
-                            <div className="flex items-center gap-2">
-                              <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
-                                Appeal Rejected
-                              </span>
-                            </div>
+                            <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700">
+                              Appeal Rejected
+                            </span>
                           )
                         }
-
                         return (
                           <button
                             type="button"

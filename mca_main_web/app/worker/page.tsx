@@ -97,6 +97,14 @@ export default async function WorkerPage() {
     .eq('worker_id', workerRow.id)
     .order('created_at', { ascending: false })
 
+
+  // Fetch payroll records for the worker
+  const { data: payrollRecords } = await supabase
+    .from('payroll_records')
+    .select('id, payroll_month, base_salary, overtime, incentives, fines, calculated_total, created_at')
+    .eq('worker_id', workerRow.id)
+    .order('payroll_month', { ascending: false })
+
   const weeklyHours =
     (weeklyRows ?? []).reduce(
       (sum: number, row: { hours_worked: number | null }) => sum + (row.hours_worked ?? 0),
@@ -120,6 +128,7 @@ export default async function WorkerPage() {
       dailyRows={(dailyRows as DailyRow[]) ?? []}
       adjustments={(adjustments as AdjustmentRow[]) ?? []}
       documents={documents ?? []}
+      payrollRecords={payrollRecords ?? []}
       authUserId={user.id}
     />
   )
