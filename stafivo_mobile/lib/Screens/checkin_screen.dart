@@ -1036,7 +1036,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadis: BorderRadius.circular(18),
                 ),
                 child: Text(
                   message,
