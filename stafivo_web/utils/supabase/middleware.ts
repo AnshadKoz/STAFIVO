@@ -52,9 +52,9 @@ export async function updateSession(request: NextRequest) {
             // but the session refresh has happened above.
             // If you want to enforce auth at middleware level, uncomment the lines below:
 
-            // const url = request.nextUrl.clone()
-            // url.pathname = '/login'
-            // return NextResponse.redirect(url)
+            const url = request.nextUrl.clone()
+            url.pathname = '/login'
+            return NextResponse.redirect(url)
         }
 
         return supabaseResponse

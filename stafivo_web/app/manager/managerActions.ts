@@ -115,6 +115,13 @@ export async function resolveFineAppealAction(
   _prev: ManagerActionResult,
   formData: FormData
 ): Promise<ManagerActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin' && roleData?.role !== 'manager') return { status: 'error', message: 'Forbidden: Managers only' };
+
   const supabase = await createClient()
 
   const appealId = formData.get('appeal_id') as string | null
@@ -390,6 +397,13 @@ export async function logAttendanceAction(
   _prev: ManagerActionResult,
   formData: FormData
 ): Promise<ManagerActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin' && roleData?.role !== 'manager') return { status: 'error', message: 'Forbidden: Managers only' };
+
   const supabase = await createClient()
   const workerId = formData.get('worker_id') as string | null
   const actionValue = (formData.get('action') as 'IN' | 'OUT' | null) ?? 'IN'

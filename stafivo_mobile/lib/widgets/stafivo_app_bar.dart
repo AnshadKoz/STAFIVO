@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
-PreferredSizeWidget workForgeAppBar(
+/// STAFIVO branded AppBar factory.
+/// Built by Pent 26.
+///
+/// Usage: `appBar: stafivoAppBar(context, 'Screen Title')`
+PreferredSizeWidget stafivoAppBar(
   BuildContext context,
   String title, {
   bool implyLeading = true,
@@ -24,3 +28,13 @@ PreferredSizeWidget workForgeAppBar(
     actions: actions,
   );
 }
+
+// Legacy alias — remove after all call sites are updated.
+// ignore: non_constant_identifier_names
+PreferredSizeWidget workForgeAppBar(
+  BuildContext context,
+  String title, {
+  bool implyLeading = true,
+  List<Widget>? actions,
+}) =>
+    stafivoAppBar(context, title, implyLeading: implyLeading, actions: actions);

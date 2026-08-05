@@ -188,7 +188,7 @@ export default async function AdminPage() {
       initialAttendance={attendance}
       hoursSummary={{ weeklyHours, monthlyHours }}
       userId={user.id}
-      dashboardTitle="WorkForge · Admin Dashboard & Management"
+      dashboardTitle="STAFIVO · Admin Dashboard"
       workerRequests={pendingRequests ?? []}
       adminManagerRows={adminManagers}
       managerCandidates={managerCandidates ?? []}

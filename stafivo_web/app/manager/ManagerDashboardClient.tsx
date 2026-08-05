@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { FormEvent, ReactNode, useActionState, useEffect, useRef, useState, useTransition } from 'react'
 import {
@@ -361,6 +361,7 @@ export default function ManagerDashboardClient({
 
   // Outlet Delete Confirmation State
   const [outletDeleteConfirm, setOutletDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
 
   useEffect(() => {
     if (adjustmentMessage) {
@@ -483,7 +484,7 @@ export default function ManagerDashboardClient({
     if (outletName) return outletName
     return managerOutletName
   }
-  const title = dashboardTitle ?? (isAdmin ? 'WorkForge · Admin Dashboard' : 'WorkForge · Manager Dashboard')
+  const title = dashboardTitle ?? (isAdmin ? 'STAFIVO آ· Admin Dashboard' : 'STAFIVO آ· Manager Dashboard')
 
   const openAppealModal = (appeal: FineAppealRow) => {
     setCurrentAppeal(appeal)
@@ -953,7 +954,7 @@ export default function ManagerDashboardClient({
             <select
               value={adjustmentOutletFilter}
               onChange={(e) => setAdjustmentOutletFilter(e.target.value)}
-              className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="">All Outlets</option>
               {outlets.map(o => (
@@ -966,7 +967,7 @@ export default function ManagerDashboardClient({
           <select
             value={adjustmentForm.worker_id}
             onChange={e => setAdjustmentForm({ ...adjustmentForm, worker_id: e.target.value })}
-            className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
 
             <option value="">Select worker</option>
@@ -982,7 +983,7 @@ export default function ManagerDashboardClient({
           <select
             value={adjustmentForm.kind}
             onChange={e => handleKindChange(e.target.value as 'ot' | 'fine' | 'incentive' | 'deduction')}
-            className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="ot">OT</option>
             <option value="fine">Fine</option>
@@ -997,7 +998,7 @@ export default function ManagerDashboardClient({
               value={adjustmentForm.hours}
               onChange={e => setAdjustmentForm({ ...adjustmentForm, hours: e.target.value })}
               placeholder="Hours"
-              className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           ) : (
             <input
@@ -1005,33 +1006,33 @@ export default function ManagerDashboardClient({
               step="0.01"
               value={adjustmentForm.amount}
               onChange={e => setAdjustmentForm({ ...adjustmentForm, amount: e.target.value })}
-              placeholder="Amount (₹)"
-              className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              placeholder="Amount (أ¢â€ڑآ¹)"
+              className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           )}
           <input
             type="date"
             value={adjustmentForm.effective_date}
             onChange={e => setAdjustmentForm({ ...adjustmentForm, effective_date: e.target.value })}
-            className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
         <textarea
           value={adjustmentForm.note}
           onChange={e => setAdjustmentForm({ ...adjustmentForm, note: e.target.value })}
           placeholder="Note"
-          className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <button
           type="submit"
           disabled={savingAdjustment}
-          className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-700 disabled:opacity-60"
+          className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-700 disabled:opacity-60"
         >
           {savingAdjustment ? 'Saving...' : 'Save adjustment'}
         </button>
         {adjustmentMessage ? (
           <p
-            className={`text-sm ${adjustmentMessage.type === 'success' ? 'text-emerald-600' : 'text-red-600'
+            className={`text-sm ${adjustmentMessage.type === 'success' ? 'text-blue-600' : 'text-red-600'
               }`}
           >
             {adjustmentMessage.text}
@@ -1048,12 +1049,12 @@ export default function ManagerDashboardClient({
                 type="date"
                 value={adjustmentFilterDate}
                 onChange={(e) => setAdjustmentFilterDate(e.target.value)}
-                className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
               <select
                 value={adjustmentFilterCreatedBy}
                 onChange={(e) => setAdjustmentFilterCreatedBy(e.target.value)}
-                className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs bg-white focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+                className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs bg-white focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="all">All Creators</option>
                 <option value="admin">Created by Admin</option>
@@ -1083,9 +1084,9 @@ export default function ManagerDashboardClient({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold uppercase text-xs text-gray-600">{adj.kind}</span>
-                      <span className="text-gray-400">·</span>
+                      <span className="text-gray-400">ط¢آ·</span>
                       <span className="text-gray-900 font-medium">
-                        {adj.kind === 'ot' ? `${adj.hours} hrs` : `₹${adj.amount}`}
+                        {adj.kind === 'ot' ? `${adj.hours} hrs` : `أ¢â€ڑآ¹${adj.amount}`}
                       </span>
                       {/* Creator Badge */}
                       {adj.creator_role && (
@@ -1098,7 +1099,7 @@ export default function ManagerDashboardClient({
                       )}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {new Date(adj.effective_date).toLocaleDateString('en-IN')}{adj.note ? ` · ${adj.note}` : ''}
+                      {new Date(adj.effective_date).toLocaleDateString('en-IN')}{adj.note ? ` ط¢آ· ${adj.note}` : ''}
                       {adj.status && (
                         <span className={`ml-2 inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${adj.status === 'pending' ? 'bg-amber-100 text-amber-800' :
                           adj.status === 'approved' ? 'bg-green-100 text-green-800' :
@@ -1134,13 +1135,13 @@ export default function ManagerDashboardClient({
       id: 'workers',
       title: isAdmin ? 'Workforce' : 'My Team',
       description: 'Manage worker roster and rates.',
-      accent: 'from-emerald-500 to-green-500',
+      accent: 'from-blue-600 to-indigo-500',
       stat: workers.length.toString(),
       detail: 'Active workers',
       content: (
         <div className="space-y-6">
           <div>
-            <h4 className="text-sm font-semibold tracking-wide text-emerald-600">Create worker</h4>
+            <h4 className="text-sm font-semibold tracking-wide text-blue-600">Create worker</h4>
             {isAdmin ? (
               <>
                 <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -1148,12 +1149,12 @@ export default function ManagerDashboardClient({
                     value={form.name}
                     onChange={e => setForm({ ...form, name: e.target.value })}
                     placeholder="Full name"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <select
                     value={form.outlet_id}
                     onChange={e => setForm({ ...form, outlet_id: e.target.value })}
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   >
                     <option value="">Select outlet</option>
                     {outlets.map(outlet => (
@@ -1166,29 +1167,29 @@ export default function ManagerDashboardClient({
                     value={form.phone}
                     onChange={e => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                     placeholder="Phone"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <input
                     value={form.email}
                     onChange={e => setForm({ ...form, email: e.target.value })}
                     placeholder="Email"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <input
                     type="number"
                     step="0.01"
                     value={form.base_salary_per_hour}
                     onChange={e => setForm({ ...form, base_salary_per_hour: e.target.value })}
-                    placeholder="Base rate (₹/hr)"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    placeholder="Base rate (أ¢â€ڑآ¹/hr)"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <input
                     type="number"
                     step="0.01"
                     value={form.ot_rate_per_hour}
                     onChange={e => setForm({ ...form, ot_rate_per_hour: e.target.value })}
-                    placeholder="OT rate (₹/hr)"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    placeholder="OT rate (أ¢â€ڑآ¹/hr)"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <div className="relative">
                     <input
@@ -1196,7 +1197,7 @@ export default function ManagerDashboardClient({
                       value={form.password}
                       onChange={e => setForm({ ...form, password: e.target.value })}
                       placeholder="Password (min 6 chars)"
-                      className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                     <button
                       type="button"
@@ -1220,7 +1221,7 @@ export default function ManagerDashboardClient({
                   <button
                     type="button"
                     onClick={addWorker}
-                    className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-700"
+                    className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-700"
                   >
                     Create worker
                   </button>
@@ -1236,7 +1237,7 @@ export default function ManagerDashboardClient({
                     onChange={e => setForm({ ...form, name: e.target.value })}
                     placeholder="Full name"
                     required
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <div className="rounded-2xl border border-gray-100 bg-gray-50 px-4 py-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Outlet</p>
@@ -1247,14 +1248,14 @@ export default function ManagerDashboardClient({
                     value={form.phone}
                     onChange={e => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
                     placeholder="Phone"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <input
                     name="email"
                     value={form.email}
                     onChange={e => setForm({ ...form, email: e.target.value })}
                     placeholder="Email"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <input
                     type="number"
@@ -1262,8 +1263,8 @@ export default function ManagerDashboardClient({
                     name="base_salary_per_hour"
                     value={form.base_salary_per_hour}
                     onChange={e => setForm({ ...form, base_salary_per_hour: e.target.value })}
-                    placeholder="Base rate (₹/hr)"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    placeholder="Base rate (أ¢â€ڑآ¹/hr)"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <input
                     type="number"
@@ -1271,8 +1272,8 @@ export default function ManagerDashboardClient({
                     name="ot_rate_per_hour"
                     value={form.ot_rate_per_hour}
                     onChange={e => setForm({ ...form, ot_rate_per_hour: e.target.value })}
-                    placeholder="OT rate (₹/hr)"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    placeholder="OT rate (أ¢â€ڑآ¹/hr)"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
                 <input type="hidden" name="outlet_id" value={managerOutletId} />
@@ -1280,7 +1281,7 @@ export default function ManagerDashboardClient({
                   <button
                     type="submit"
                     onClick={() => showToast({ type: 'info', title: 'Processing', description: 'Sending request, please wait...' })}
-                    className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-700"
+                    className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-700"
                   >
                     Send approval request
                   </button>
@@ -1296,7 +1297,7 @@ export default function ManagerDashboardClient({
               <select
                 value={workerFilterOutlet}
                 onChange={e => setWorkerFilterOutlet(e.target.value)}
-                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value="">All outlets</option>
                 {outlets.map(o => (
@@ -1334,8 +1335,8 @@ export default function ManagerDashboardClient({
                       <td className="px-3 py-2 text-gray-600">
                         {worker.outletName ?? resolveOutletName(worker.outlet_id)}
                       </td>
-                      <td className="px-3 py-2 text-gray-600">{worker.phone ?? '—'}</td>
-                      <td className="px-3 py-2 text-gray-600">{worker.email ?? '—'}</td>
+                      <td className="px-3 py-2 text-gray-600">{worker.phone ?? 'أ¢â‚¬â€‌'}</td>
+                      <td className="px-3 py-2 text-gray-600">{worker.email ?? 'أ¢â‚¬â€‌'}</td>
                       <td className="px-3 py-2 text-gray-600">{formatRate(worker.base_salary_per_hour)}</td>
                       <td className="px-3 py-2 text-gray-600">{formatRate(worker.ot_rate_per_hour)}</td>
                       {isAdmin && (
@@ -1382,7 +1383,7 @@ export default function ManagerDashboardClient({
       id: 'attendance',
       title: 'Attendance',
       description: 'Drop quick IN/OUT entries, optionally backdating the time.',
-      accent: 'from-green-400 to-emerald-500',
+      accent: 'from-blue-400 to-blue-600',
       stat: attendance.length ? attendance[0].action : 'IN',
       detail: attendance.length ? `${attendance[0].worker_name ?? ''}` : 'No records',
       content: (
@@ -1427,7 +1428,7 @@ export default function ManagerDashboardClient({
               name="action"
               value={aForm.action}
               onChange={e => setAForm({ ...aForm, action: e.target.value as 'IN' | 'OUT' })}
-              className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             >
               <option value="IN">IN</option>
               <option value="OUT">OUT</option>
@@ -1444,7 +1445,7 @@ export default function ManagerDashboardClient({
             </div>
             <button
               type="submit"
-              className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-700"
+              className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-700"
             >
               Log attendance
             </button>
@@ -1609,7 +1610,7 @@ export default function ManagerDashboardClient({
                         <p className="text-sm font-semibold">{log.worker_name ?? 'Worker'}</p>
                         {sourceBadge}
                       </div>
-                      <p className="text-xs text-gray-500">{log.outlet_name ?? 'Outlet'} · {log.action}</p>
+                      <p className="text-xs text-gray-500">{log.outlet_name ?? 'Outlet'} ط¢آ· {log.action}</p>
                     </div>
                     <p className="text-xs text-gray-500">{formatAttendanceTime(log.timestamp_utc)}</p>
                   </div>
@@ -1624,8 +1625,8 @@ export default function ManagerDashboardClient({
       id: 'adjustments',
       title: 'Adjustments',
       description: 'Insert OT, fines, incentives, or deductions.',
-      accent: 'from-lime-400 to-emerald-400',
-      stat: '₹',
+      accent: 'from-blue-400 to-cyan-400',
+      stat: 'أ¢â€ڑآ¹',
       detail: 'Manual edits',
       content: renderAdjustmentsContent(),
     },
@@ -1640,13 +1641,13 @@ export default function ManagerDashboardClient({
         id: 'requests',
         title: 'Worker Requests',
         description: 'Send onboarding requests to Admin for approval.',
-        accent: 'from-emerald-400 to-sky-400',
+        accent: 'from-blue-400 to-sky-400',
         stat: pendingRequests.length.toString(),
         detail: 'Pending approvals',
         content: (
           <div className="space-y-4">
             <p className="text-sm text-gray-600">
-              Submit new Workers through the “Add worker” form above. Every pending request shows up here until admin
+              Submit new Workers through the أ¢â‚¬إ“Add workerأ¢â‚¬â€Œ form above. Every pending request shows up here until admin
               responds.
             </p>
             <div className="space-y-3">
@@ -1658,13 +1659,13 @@ export default function ManagerDashboardClient({
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-semibold text-gray-900">{request.name}</p>
-                        <p className="text-xs text-gray-500">{request.email ?? request.phone ?? '—'}</p>
+                        <p className="text-xs text-gray-500">{request.email ?? request.phone ?? 'أ¢â‚¬â€‌'}</p>
                       </div>
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${request.status === 'pending'
                           ? 'bg-amber-100 text-amber-700'
                           : request.status === 'approved'
-                            ? 'bg-emerald-100 text-emerald-700'
+                            ? 'bg-blue-100 text-blue-700'
                             : 'bg-red-100 text-red-700'
                           }`}
                       >
@@ -1685,7 +1686,7 @@ export default function ManagerDashboardClient({
         id: 'appeals',
         title: 'Fine Appeals',
         description: 'Review pending worker appeals and respond.',
-        accent: 'from-emerald-500 to-amber-400',
+        accent: 'from-blue-500 to-amber-400',
         stat: appeals.length.toString(),
         detail: 'Pending appeals',
         content: (
@@ -1704,7 +1705,7 @@ export default function ManagerDashboardClient({
                     <button
                       type="button"
                       onClick={() => openAppealModal(appeal)}
-                      className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                      className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                     >
                       Review
                     </button>
@@ -1735,13 +1736,13 @@ export default function ManagerDashboardClient({
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{worker.name}</p>
                     <p className="text-xs text-gray-500">
-                      {outlets.find(o => o.id === worker.outlet_id)?.name ?? '—'}
+                      {outlets.find(o => o.id === worker.outlet_id)?.name ?? 'أ¢â‚¬â€‌'}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => openDocumentsModal(worker.id)}
-                    className="text-sm font-semibold text-emerald-600 hover:text-emerald-700"
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-700"
                   >
                     View
                   </button>
@@ -1756,7 +1757,7 @@ export default function ManagerDashboardClient({
         title: 'Payroll Preview',
         description: 'Preview payroll for your outlet workers (read-only).',
         accent: 'from-blue-400 to-indigo-500',
-        stat: '₹',
+        stat: 'أ¢â€ڑآ¹',
         detail: 'Preview only',
         content: (
           <div className="space-y-4">
@@ -1769,7 +1770,7 @@ export default function ManagerDashboardClient({
                   type="month"
                   name="month"
                   required
-                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
               <button
@@ -1844,11 +1845,11 @@ export default function ManagerDashboardClient({
                           <tr key={row.workerId} className="border-b border-gray-100">
                             <td className="py-2 px-3 font-medium">{row.workerName}</td>
                             <td className="py-2 px-3 text-right">{(row.workedHours ?? 0).toFixed(2)}</td>
-                            <td className="py-2 px-3 text-right">₹{(row.baseSalary ?? 0).toFixed(2)}</td>
-                            <td className="py-2 px-3 text-right">₹{(row.overtime ?? 0).toFixed(2)}</td>
-                            <td className="py-2 px-3 text-right">₹{(row.incentives ?? 0).toFixed(2)}</td>
-                            <td className="py-2 px-3 text-right">₹{(row.fines ?? 0).toFixed(2)}</td>
-                            <td className="py-2 px-3 text-right font-semibold">₹{(row.total ?? 0).toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right">أ¢â€ڑآ¹{(row.baseSalary ?? 0).toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right">أ¢â€ڑآ¹{(row.overtime ?? 0).toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right">أ¢â€ڑآ¹{(row.incentives ?? 0).toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right">أ¢â€ڑآ¹{(row.fines ?? 0).toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right font-semibold">أ¢â€ڑآ¹{(row.total ?? 0).toFixed(2)}</td>
                           </tr>
                         ));
                       })()}
@@ -1884,7 +1885,7 @@ export default function ManagerDashboardClient({
         id: 'outlets',
         title: 'Outlets',
         description: 'Create, edit, and delete outlet geofences.',
-        accent: 'from-emerald-500 to-slate-500',
+        accent: 'from-blue-500 to-slate-500',
         stat: outlets.length.toString(),
         detail: 'Active outlets',
         content: (
@@ -1897,7 +1898,7 @@ export default function ManagerDashboardClient({
                   value={outletForm.name}
                   onChange={e => setOutletForm({ ...outletForm, name: e.target.value })}
                   placeholder="Outlet name"
-                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />
                 <input
@@ -1905,27 +1906,27 @@ export default function ManagerDashboardClient({
                   value={outletForm.latitude}
                   onChange={e => setOutletForm({ ...outletForm, latitude: e.target.value })}
                   placeholder="Latitude"
-                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
                 <input
                   name="longitude"
                   value={outletForm.longitude}
                   onChange={e => setOutletForm({ ...outletForm, longitude: e.target.value })}
                   placeholder="Longitude"
-                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
                 <input
                   name="radius_meters"
                   value={outletForm.radius_meters}
                   onChange={e => setOutletForm({ ...outletForm, radius_meters: e.target.value })}
                   placeholder="Radius (m)"
-                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
               <div className="flex gap-3">
                 <button
                   type="submit"
-                  className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-emerald-700"
+                  className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow hover:bg-blue-700"
                 >
                   {outletForm.outlet_id ? 'Update outlet' : 'Create outlet'}
                 </button>
@@ -1948,7 +1949,7 @@ export default function ManagerDashboardClient({
                   <div>
                     <p className="text-sm font-semibold">{outlet.name}</p>
                     <p className="text-xs text-gray-500">
-                      Lat {outlet.latitude ?? '—'} · Lng {outlet.longitude ?? '—'} · Radius {outlet.radius_meters ?? '—'} m
+                      Lat {outlet.latitude ?? 'أ¢â‚¬â€‌'} ط¢آ· Lng {outlet.longitude ?? 'أ¢â‚¬â€‌'} ط¢آ· Radius {outlet.radius_meters ?? 'أ¢â‚¬â€‌'} m
                     </p>
                   </div>
                   <div className="flex gap-3">
@@ -1980,7 +1981,7 @@ export default function ManagerDashboardClient({
         id: 'managers',
         title: 'Managers',
         description: 'Link app users to outlets and toggle access.',
-        accent: 'from-emerald-500 to-indigo-500',
+        accent: 'from-blue-500 to-indigo-500',
         stat: managerRows.length.toString(),
         detail: 'Active managers',
         content: (
@@ -2011,7 +2012,7 @@ export default function ManagerDashboardClient({
               {managerMode === 'existing' ? (
                 <select
                   name="app_user_id"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="">Select manager user</option>
                   {candidates.map(candidate => (
@@ -2025,13 +2026,13 @@ export default function ManagerDashboardClient({
                   <input
                     name="name"
                     placeholder="Full name"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <input
                     type="email"
                     name="email"
                     placeholder="Email"
-                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <div className="relative">
                     <input
@@ -2039,7 +2040,7 @@ export default function ManagerDashboardClient({
                       name="password"
                       placeholder="Password (min 6 chars)"
                       minLength={6}
-                      className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                     <button
                       type="button"
@@ -2063,7 +2064,7 @@ export default function ManagerDashboardClient({
               <select
                 name="outlet_id"
                 required
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value="">Assign outlet</option>
                 {outlets.map(outlet => (
@@ -2084,7 +2085,7 @@ export default function ManagerDashboardClient({
                   title: 'Processing',
                   description: managerMode === 'new' ? 'Creating manager, please wait...' : 'Linking manager, please wait...'
                 })}
-                className={`rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow transition ${createManagerPending ? 'bg-emerald-400 cursor-not-allowed' : 'bg-emerald-600 hover:bg-emerald-700'
+                className={`rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow transition ${createManagerPending ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
                   }`}
               >
                 {createManagerPending
@@ -2117,7 +2118,7 @@ export default function ManagerDashboardClient({
                     return (
                       <tr key={row.id} className="border-t border-gray-100">
                         <td className="px-3 py-2 font-semibold">{row.name ?? 'Manager'}</td>
-                        <td className="px-3 py-2 text-gray-600">{row.email ?? '—'}</td>
+                        <td className="px-3 py-2 text-gray-600">{row.email ?? 'أ¢â‚¬â€‌'}</td>
                         <td className="px-3 py-2 text-gray-600">
                           <select
                             name="outlet_id"
@@ -2156,7 +2157,7 @@ export default function ManagerDashboardClient({
                               const form = document.getElementById(formId) as HTMLFormElement | null
                               if (form) form.requestSubmit()
                             }}
-                            className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                           />
                         </td>
                         <td className="px-3 py-2 text-right">
@@ -2197,7 +2198,7 @@ export default function ManagerDashboardClient({
         id: 'pending-workers',
         title: 'Pending Workers',
         description: 'Approve or reject onboarding requests from managers.',
-        accent: 'from-emerald-500 to-orange-400',
+        accent: 'from-blue-500 to-orange-400',
         stat: requests.length.toString(),
         detail: 'Waiting for decision',
         content: (
@@ -2213,14 +2214,14 @@ export default function ManagerDashboardClient({
                   <input type="hidden" name="request_id" value={request.id} />
                   <p className="text-sm font-semibold">{request.name}</p>
                   <p className="text-xs text-gray-500">
-                    {request.email ?? request.phone ?? '—'} · Outlet: {outlets.find(o => o.id === request.outlet_id)?.name ?? '—'}
+                    {request.email ?? request.phone ?? 'أ¢â‚¬â€‌'} ط¢آ· Outlet: {outlets.find(o => o.id === request.outlet_id)?.name ?? 'أ¢â‚¬â€‌'}
                   </p>
                   <textarea
                     name="admin_comment"
                     value={requestComments[request.id] ?? ''}
                     onChange={e => setRequestComments(prev => ({ ...prev, [request.id]: e.target.value }))}
                     placeholder="Comment"
-                    className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="mt-3 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <div className="relative mt-2">
                     <input
@@ -2228,7 +2229,7 @@ export default function ManagerDashboardClient({
                       name="password"
                       placeholder="Set Password for Worker (min 6 chars)"
                       required
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     />
                     <button
                       type="button"
@@ -2253,7 +2254,7 @@ export default function ManagerDashboardClient({
                     <button
                       type="submit"
                       formAction={approveRequestAction}
-                      className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700"
+                      className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
                     >
                       Approve
                     </button>
@@ -2276,8 +2277,8 @@ export default function ManagerDashboardClient({
         id: 'payroll',
         title: 'Payroll & Analytics',
         description: 'Generate payroll runs and print payslips.',
-        accent: 'from-emerald-600 to-slate-600',
-        stat: '₹',
+        accent: 'from-blue-600 to-slate-600',
+        stat: 'أ¢â€ڑآ¹',
         detail: 'Payroll tools',
         content: (
           <div className="space-y-4">
@@ -2310,17 +2311,17 @@ export default function ManagerDashboardClient({
     id: 'analytics',
     title: 'Team Analytics',
     description: 'Hours vs OT for your team',
-    accent: 'from-emerald-400 to-cyan-400',
+    accent: 'from-blue-400 to-cyan-400',
     stat: analyticsData.reduce((sum, item) => sum + item.total_hours, 0).toFixed(1),
     detail: analyticsLabel,
     content: (
       <div>
         <div className="mb-4 flex items-center justify-between sm:justify-start sm:gap-4">
-          <div className="inline-flex rounded-full bg-emerald-50 p-1 text-xs font-semibold text-emerald-700">
+          <div className="inline-flex rounded-full bg-blue-50 p-1 text-xs font-semibold text-blue-700">
             <button
               type="button"
               onClick={() => setAnalyticsMode('month')}
-              className={`rounded-full px-3 py-1 transition ${analyticsMode === 'month' ? 'bg-white shadow text-emerald-700' : 'text-emerald-500'
+              className={`rounded-full px-3 py-1 transition ${analyticsMode === 'month' ? 'bg-white shadow text-blue-700' : 'text-blue-500'
                 }`}
             >
               This month
@@ -2328,7 +2329,7 @@ export default function ManagerDashboardClient({
             <button
               type="button"
               onClick={() => setAnalyticsMode('week')}
-              className={`rounded-full px-3 py-1 transition ${analyticsMode === 'week' ? 'bg-white shadow text-emerald-700' : 'text-emerald-500'
+              className={`rounded-full px-3 py-1 transition ${analyticsMode === 'week' ? 'bg-white shadow text-blue-700' : 'text-blue-500'
                 }`}
             >
               This week
@@ -2338,7 +2339,7 @@ export default function ManagerDashboardClient({
             type="button"
             onClick={() => startTransition(() => router.refresh())}
             disabled={isPending}
-            className={`inline-flex items-center justify-center rounded-full p-1.5 transition ${isPending ? 'bg-gray-100 text-gray-400' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700'
+            className={`inline-flex items-center justify-center rounded-full p-1.5 transition ${isPending ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 text-blue-600 hover:bg-blue-100 hover:text-blue-700'
               }`}
             title="Refresh data"
           >
@@ -2385,21 +2386,21 @@ export default function ManagerDashboardClient({
 
   return (
     <AuthGate>
-      <div className="min-h-screen bg-gradient-to-b from-white via-emerald-50 to-white text-gray-900">
+      <div className="min-h-screen bg-gradient-to-b from-white via-blue-50 to-white text-gray-900">
         <header className="bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
             <div>
               <div className="flex items-center gap-4">
-                <img src="/workforge-logo.png" alt="WorkForge" className="h-14 w-auto object-contain" />
+                <img src="/brand/stafivo-logo.png" alt="STAFIVO" className="h-14 w-auto object-contain" />
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 leading-none">
                     {profile?.name ?? 'User'}
-                    <span className="ml-2 rounded-full bg-emerald-100 px-3 py-0.5 text-sm font-medium text-emerald-800 align-middle">
+                    <span className="ml-2 rounded-full bg-blue-100 px-3 py-0.5 text-sm font-medium text-blue-800 align-middle">
                       {isAdmin ? 'Admin' : 'Manager'}
                     </span>
                   </h1>
                   <p className="mt-1 text-sm font-medium text-gray-500">
-                    {isAdmin ? 'Admin Console' : 'Manager Dashboard'} · {managerOutletName}
+                    {isAdmin ? 'Admin Console' : 'Manager Dashboard'} ط¢آ· {managerOutletName}
                   </p>
                 </div>
               </div>
@@ -2408,11 +2409,11 @@ export default function ManagerDashboardClient({
               {!isAdmin ? (
                 <button
                   type="button"
-                  className="relative rounded-full bg-emerald-50 p-3 text-emerald-600 shadow ring-1 ring-emerald-100"
+                  className="relative rounded-full bg-blue-50 p-3 text-blue-600 shadow ring-1 ring-blue-100"
                   onClick={() => setNotificationPanelOpen(prev => !prev)}
                   aria-label="Open notifications"
                 >
-                  🔔
+                  ظ‹ع؛â€‌â€‌
                   {notificationCount ? (
                     <span className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
                       {notificationCount}
@@ -2432,23 +2433,23 @@ export default function ManagerDashboardClient({
 
         <main className="mx-auto max-w-6xl px-6 pb-16">
           <section className="grid gap-4 py-8 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600">This week</p>
+            <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+              <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">This week</p>
               <p className="mt-2 text-3xl font-bold text-gray-900">{summary.weeklyHours.toFixed(1)} hrs</p>
               <p className="text-sm text-gray-500">Hours tracked</p>
             </div>
-            <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600">This month</p>
+            <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+              <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">This month</p>
               <p className="mt-2 text-3xl font-bold text-gray-900">{summary.monthlyHours.toFixed(1)} hrs</p>
               <p className="text-sm text-gray-500">Hours tracked</p>
             </div>
-            <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600">Workers</p>
+            <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+              <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">Workers</p>
               <p className="mt-2 text-3xl font-bold text-gray-900">{workers.length}</p>
               <p className="text-sm text-gray-500">Active profiles</p>
             </div>
-            <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-widest text-emerald-600">
+            <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
+              <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">
                 {isAdmin ? 'Focus' : 'My outlet'}
               </p>
               <p className="mt-2 text-2xl font-semibold text-gray-900">{managerOutletName}</p>
@@ -2464,7 +2465,7 @@ export default function ManagerDashboardClient({
                 key={card.id}
                 type="button"
                 onClick={() => setActiveCard(card.id)}
-                className="group rounded-3xl border border-emerald-50 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+                className="group rounded-3xl border border-blue-50 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
               >
                 <div className={`inline-flex rounded-full bg-gradient-to-r ${card.accent} px-3 py-1 text-xs font-semibold text-white`}>
                   {card.title}
@@ -2474,7 +2475,7 @@ export default function ManagerDashboardClient({
                   <p className="text-3xl font-bold text-gray-900">{card.stat}</p>
                   <p className="text-sm text-gray-500">{card.detail}</p>
                 </div>
-                <p className="mt-4 text-sm font-semibold text-emerald-600">Open panel →</p>
+                <p className="mt-4 text-sm font-semibold text-blue-600">Open panel أ¢â€ â€™</p>
               </button>
             ))}
           </section>
@@ -2501,7 +2502,7 @@ export default function ManagerDashboardClient({
             <form action={respondToAppealAction} className="space-y-4">
               <input type="hidden" name="appeal_id" value={currentAppeal.id} />
               <input type="hidden" name="decision" value={appealDecision} />
-              <div className="rounded-2xl bg-emerald-50/80 px-4 py-3 text-sm text-gray-600">
+              <div className="rounded-2xl bg-blue-50/80 px-4 py-3 text-sm text-gray-600">
                 <p className="font-semibold text-gray-900">Worker reason</p>
                 <p className="mt-1">{currentAppeal.reason}</p>
               </div>
@@ -2509,7 +2510,7 @@ export default function ManagerDashboardClient({
                 name="response"
                 value={appealResponse}
                 onChange={e => setAppealResponse(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="Optional response to worker"
               />
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -2517,7 +2518,7 @@ export default function ManagerDashboardClient({
                   type="submit"
                   onClick={() => handleDecisionSelect('approve')}
                   disabled={appealActionPending}
-                  className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow ${appealActionPending ? 'cursor-not-allowed bg-emerald-400 opacity-80' : 'bg-emerald-600 hover:bg-emerald-700'
+                  className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow ${appealActionPending ? 'cursor-not-allowed bg-blue-400 opacity-80' : 'bg-blue-600 hover:bg-blue-700'
                     }`}
                 >
                   {appealActionPending && appealDecision === 'approve' ? 'Approving...' : 'Approve'}
@@ -2557,7 +2558,7 @@ export default function ManagerDashboardClient({
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{doc.original_name}</p>
                     <p className="text-xs text-gray-500">
-                      {doc.kind} · {new Date(doc.created_at).toLocaleDateString('en-IN')}
+                      {doc.kind} ط¢آ· {new Date(doc.created_at).toLocaleDateString('en-IN')}
                     </p>
                   </div>
                   {doc.signedUrl ? (
@@ -2565,7 +2566,7 @@ export default function ManagerDashboardClient({
                       href={doc.signedUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-sm font-semibold text-emerald-600 hover:text-emerald-700"
+                      className="text-sm font-semibold text-blue-600 hover:text-blue-700"
                     >
                       Download
                     </a>
@@ -2597,7 +2598,7 @@ export default function ManagerDashboardClient({
                   name="name"
                   value={workerEditForm.name}
                   onChange={e => setWorkerEditForm({ ...workerEditForm, name: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   required
                 />
               </div>
@@ -2607,7 +2608,7 @@ export default function ManagerDashboardClient({
                   name="outlet_id"
                   value={workerEditForm.outlet_id}
                   onChange={e => setWorkerEditForm({ ...workerEditForm, outlet_id: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
                   <option value="">Select outlet</option>
                   {outlets.map(outlet => (
@@ -2618,31 +2619,31 @@ export default function ManagerDashboardClient({
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Base Rate (₹/hr)</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Base Rate (أ¢â€ڑآ¹/hr)</label>
                 <input
                   type="number"
                   step="0.01"
                   name="base_salary_per_hour"
                   value={workerEditForm.base_salary_per_hour}
                   onChange={e => setWorkerEditForm({ ...workerEditForm, base_salary_per_hour: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">OT Rate (₹/hr)</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">OT Rate (أ¢â€ڑآ¹/hr)</label>
                 <input
                   type="number"
                   step="0.01"
                   name="ot_rate_per_hour"
                   value={workerEditForm.ot_rate_per_hour}
                   onChange={e => setWorkerEditForm({ ...workerEditForm, ot_rate_per_hour: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
               <div className="flex gap-3">
                 <button
                   type="submit"
-                  className="flex-1 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-emerald-700"
+                  className="flex-1 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
                 >
                   Save Changes
                 </button>
@@ -2690,7 +2691,7 @@ export default function ManagerDashboardClient({
                     name="new_password"
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     required
                     minLength={6}
                   />
@@ -2699,7 +2700,7 @@ export default function ManagerDashboardClient({
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    {showPassword ? '👁️' : '👁️‍🗨️'}
+                    {showPassword ? 'ظ‹ع؛â€کظ¾أ¯آ¸عˆ' : 'ظ‹ع؛â€کظ¾أ¯آ¸عˆأ¢â‚¬ع†ظ‹ع؛â€”آ¨أ¯آ¸عˆ'}
                   </button>
                 </div>
                 <p className="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
@@ -2771,7 +2772,7 @@ export default function ManagerDashboardClient({
                   onClick={() => setNotificationPanelOpen(false)}
                   className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
                 >
-                  ✕
+                  أ¢إ“â€¢
                 </button>
               </div>
               <div className="max-h-[70vh] space-y-3 overflow-y-auto px-5 py-4">
@@ -2781,7 +2782,7 @@ export default function ManagerDashboardClient({
                   notificationRows.map(notification => (
                     <div
                       key={notification.id}
-                      className={`rounded-2xl border px-4 py-3 ${notification.is_read ? 'border-gray-100 bg-white' : 'border-emerald-100 bg-emerald-50'
+                      className={`rounded-2xl border px-4 py-3 ${notification.is_read ? 'border-gray-100 bg-white' : 'border-blue-100 bg-blue-50'
                         }`}
                     >
                       <p className="text-sm font-semibold">{notification.title}</p>
@@ -2792,7 +2793,7 @@ export default function ManagerDashboardClient({
                       {!notification.is_read ? (
                         <form action={markNotificationAction} className="mt-2">
                           <input type="hidden" name="notification_id" value={notification.id} />
-                          <button type="submit" className="text-xs font-semibold text-emerald-600">
+                          <button type="submit" className="text-xs font-semibold text-blue-600">
                             Mark as read
                           </button>
                         </form>
@@ -2814,10 +2815,22 @@ export default function ManagerDashboardClient({
             <p className="mt-2 text-sm text-gray-600">
               Are you sure you want to delete <strong>{outletDeleteConfirm.name}</strong>? This action cannot be undone.
             </p>
-            <div className="mt-6 flex justify-end gap-3">
+                          <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Type <strong>{outletDeleteConfirm.name}</strong> to confirm
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                  placeholder={outletDeleteConfirm.name}
+                />
+              </div>
+              <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setOutletDeleteConfirm(null)}
+                onClick={() => { setOutletDeleteConfirm(null); setDeleteConfirmText('');; setDeleteConfirmText(''); }}
                 className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
               >
                 Cancel
@@ -2825,13 +2838,13 @@ export default function ManagerDashboardClient({
               <form
                 action={async (formData) => {
                   await deleteOutletFormAction(formData)
-                  setOutletDeleteConfirm(null)
+                  setOutletDeleteConfirm(null); setDeleteConfirmText('');
                 }}
               >
                 <input type="hidden" name="outlet_id" value={outletDeleteConfirm.id} />
                 <button
                   type="submit"
-                  className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
+                  disabled={deleteConfirmText !== outletDeleteConfirm.name} className="rounded-xl bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
                 >
                   Delete
                 </button>
@@ -2864,7 +2877,7 @@ function AutoSaveIndicator() {
   }
 
   if (saved) {
-    return <span className="text-xs font-medium text-emerald-600">Saved</span>
+    return <span className="text-xs font-medium text-blue-600">Saved</span>
   }
 
   return <span className="w-8" /> // Spacer
@@ -2885,7 +2898,7 @@ const PayrollPrintView = ({ rows, month }: { rows: PayrollRunRow[], month: strin
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
         <div>
           <h3 className="text-lg font-semibold">
-            Payroll Preview – {month}
+            Payroll Preview أ¢â‚¬â€œ {month}
           </h3>
           <p className="text-sm text-gray-500">Summary for all workers for this month.</p>
         </div>
@@ -2909,20 +2922,24 @@ const PayrollPrintView = ({ rows, month }: { rows: PayrollRunRow[], month: strin
                 <tr key={row.workerId} className="border-b border-gray-100 border-gray-300">
                   <td className="py-1.5 px-2 font-medium">{row.workerName}</td>
                   <td className="py-1.5 px-2 text-right">{(row.workedHours ?? 0).toFixed(2)}</td>
-                  <td className="py-1.5 px-2 text-right">₹{(row.baseSalary ?? 0).toFixed(2)}</td>
-                  <td className="py-1.5 px-2 text-right">₹{(row.overtime ?? 0).toFixed(2)}</td>
-                  <td className="py-1.5 px-2 text-right">₹{(row.incentives ?? 0).toFixed(2)}</td>
-                  <td className="py-1.5 px-2 text-right">₹{(row.fines ?? 0).toFixed(2)}</td>
-                  <td className="py-1.5 px-2 text-right font-semibold">₹{(row.total ?? 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-2 text-right">أ¢â€ڑآ¹{(row.baseSalary ?? 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-2 text-right">أ¢â€ڑآ¹{(row.overtime ?? 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-2 text-right">أ¢â€ڑآ¹{(row.incentives ?? 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-2 text-right">أ¢â€ڑآ¹{(row.fines ?? 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-2 text-right font-semibold">أ¢â€ڑآ¹{(row.total ?? 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div className="mt-8 text-xs text-gray-500 text-center">
-            Generated by WorkForge Manager Dashboard
+            Generated by STAFIVO آ· Powered by Pent 26
           </div>
         </div>
       </div>
     </div>
   </div>
 )
+
+
+
+

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { ChangeEvent, useActionState, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -71,7 +71,7 @@ const actionInit: WorkerActionResult = { status: 'idle' }
 const currency = (value: number | null | undefined) =>
   typeof value === 'number'
     ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(value)
-    : '₹0.00'
+    : 'â‚¹0.00'
 
 const rate = (value: number | null | undefined) =>
   typeof value === 'number' ? `${currency(value)}/hr` : 'Not set'
@@ -266,22 +266,22 @@ export default function WorkerDashboardClient({
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-emerald-50 to-white px-4 py-8 text-gray-900">
+    <div className="min-h-screen bg-gradient-to-b from-white via-blue-50 to-white px-4 py-8 text-gray-900">
       <div className="mx-auto max-w-4xl space-y-8">
-        <header className="rounded-3xl border border-emerald-100 bg-white p-6 shadow-sm">
+        <header className="rounded-3xl border border-blue-100 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-4">
-                <img src="/workforge-logo.png" alt="WorkForge" className="h-14 w-auto object-contain" />
+                <img src="/brand/stafivo-logo.png" alt="STAFIVO" className="h-14 w-auto object-contain" />
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 leading-none">
                     {worker.name}
-                    <span className="ml-2 rounded-full bg-emerald-100 px-3 py-0.5 text-sm font-medium text-emerald-800 align-middle">
+                    <span className="ml-2 rounded-full bg-blue-100 px-3 py-0.5 text-sm font-medium text-blue-800 align-middle">
                       Worker
                     </span>
                   </h1>
                   <p className="mt-1 text-sm font-medium text-gray-500">
-                    My Dashboard {worker.outlets?.name ? `· ${worker.outlets.name}` : ''}
+                    My Dashboard {worker.outlets?.name ? `آ· ${worker.outlets.name}` : ''}
                   </p>
                 </div>
               </div>
@@ -289,18 +289,18 @@ export default function WorkerDashboardClient({
             <button
               type="button"
               onClick={signOut}
-              className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-700"
+              className="rounded-full bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-700"
             >
               Log out
             </button>
           </div>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl bg-emerald-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">This week</p>
+            <div className="rounded-2xl bg-blue-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">This week</p>
               <p className="mt-2 text-3xl font-bold">{weeklyHours.toFixed(1)} hrs</p>
             </div>
-            <div className="rounded-2xl bg-emerald-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-600">This month</p>
+            <div className="rounded-2xl bg-blue-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600">This month</p>
               <p className="mt-2 text-3xl font-bold">{monthlyHours.toFixed(1)} hrs</p>
             </div>
           </div>
@@ -343,7 +343,7 @@ export default function WorkerDashboardClient({
           </div>
         </section>
 
-        {/* Salary History — full width so the 6-column table never overflows */}
+        {/* Salary History â€” full width so the 6-column table never overflows */}
         <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Salary History</h2>
           <p className="mt-1 text-sm text-gray-500">All payroll records for your account</p>
@@ -359,7 +359,7 @@ export default function WorkerDashboardClient({
                     <th className="px-4 py-3 text-right font-semibold">OT</th>
                     <th className="px-4 py-3 text-right font-semibold">Incentives</th>
                     <th className="px-4 py-3 text-right font-semibold">Fines</th>
-                    <th className="px-4 py-3 text-right font-semibold text-emerald-700">Total</th>
+                    <th className="px-4 py-3 text-right font-semibold text-blue-700">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -370,7 +370,7 @@ export default function WorkerDashboardClient({
                       <td className="px-4 py-3 text-right tabular-nums">{currency(rec.overtime)}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{currency(rec.incentives)}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{currency(rec.fines)}</td>
-                      <td className="px-4 py-3 text-right font-bold tabular-nums text-emerald-700">{currency(rec.calculated_total)}</td>
+                      <td className="px-4 py-3 text-right font-bold tabular-nums text-blue-700">{currency(rec.calculated_total)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -379,7 +379,7 @@ export default function WorkerDashboardClient({
           </div>
         </section>
 
-        {/* Recent Adjustments — full width below */}
+        {/* Recent Adjustments â€” full width below */}
         <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Recent adjustments</h2>
           <p className="mt-1 text-sm text-gray-500">Includes OT, fines, incentives, deductions.</p>
@@ -394,9 +394,9 @@ export default function WorkerDashboardClient({
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900">
-                      {adj.kind.toUpperCase()} · {new Date(adj.effective_date).toLocaleDateString('en-IN')}
+                      {adj.kind.toUpperCase()} آ· {new Date(adj.effective_date).toLocaleDateString('en-IN')}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">{adj.note ?? '—'}</p>
+                    <p className="text-xs text-gray-500 truncate">{adj.note ?? 'â€”'}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <p className="text-sm font-semibold text-gray-900">
@@ -410,7 +410,7 @@ export default function WorkerDashboardClient({
 
                         if (appeal?.status === 'approved') {
                           return (
-                            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
                               Resolved
                             </span>
                           )
@@ -433,7 +433,7 @@ export default function WorkerDashboardClient({
                           <button
                             type="button"
                             onClick={() => openAppealModal(adj)}
-                            className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                            className="rounded-full border border-blue-200 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-50"
                           >
                             Appeal
                           </button>
@@ -461,15 +461,15 @@ export default function WorkerDashboardClient({
                           {kind === 'bank_passbook' ? 'Bank Passbook' : 'Health Card'}
                         </p>
                         {hasDocs ? (
-                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-800">
+                          <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-800">
                             Uploaded
                           </span>
                         ) : null}
                       </div>
                       <p className="text-xs text-gray-500">Upload clear photos or PDFs.</p>
                     </div>
-                    <label className="cursor-pointer rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100">
-                      {uploading === kind ? 'Uploading…' : hasDocs ? 'Re-upload' : 'Upload'}
+                    <label className="cursor-pointer rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+                      {uploading === kind ? 'Uploadingâ€¦' : hasDocs ? 'Re-upload' : 'Upload'}
                       <input
                         type="file"
                         accept="image/*,application/pdf"
@@ -484,7 +484,7 @@ export default function WorkerDashboardClient({
                         <div key={doc.id} className="flex items-center gap-2">
                           <a
                             href={doc.signedUrl ?? '#'}
-                            className="flex flex-1 items-center justify-between rounded-xl border border-gray-100 px-3 py-2 text-xs text-emerald-700 hover:bg-emerald-50"
+                            className="flex flex-1 items-center justify-between rounded-xl border border-gray-100 px-3 py-2 text-xs text-blue-700 hover:bg-blue-50"
                             target="_blank"
                             rel="noreferrer"
                           >
@@ -524,7 +524,7 @@ export default function WorkerDashboardClient({
           <input type="hidden" name="adjustment_id" value={appealAdjustment?.id ?? ''} />
           <textarea
             name="reason"
-            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             placeholder="Explain why this fine should be removed"
             value={appealReason}
             onChange={e => setAppealReason(e.target.value)}
@@ -534,8 +534,8 @@ export default function WorkerDashboardClient({
             type="submit"
             disabled={isAppealPending}
             className={`rounded-xl px-4 py-2 text-sm font-semibold text-white shadow ${isAppealPending
-              ? 'cursor-not-allowed bg-emerald-400'
-              : 'bg-emerald-600 hover:bg-emerald-700'
+              ? 'cursor-not-allowed bg-blue-400'
+              : 'bg-blue-600 hover:bg-blue-700'
               }`}
           >
             {isAppealPending ? 'Submitting...' : 'Submit appeal'}
@@ -572,3 +572,4 @@ export default function WorkerDashboardClient({
     </div>
   )
 }
+

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../theme/stafivo_colors.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,7 +20,6 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
-    // Animation controller
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -51,8 +51,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -60,6 +58,7 @@ class _SplashScreenState extends State<SplashScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Animated logo
               AnimatedBuilder(
                 animation: _controller,
                 builder: (context, child) {
@@ -75,32 +74,47 @@ class _SplashScreenState extends State<SplashScreen>
                   width: 150,
                   height: 150,
                   decoration: BoxDecoration(
-                    color: scheme.primary.withValues(alpha: 0.06),
+                    color: StafivoColors.primary.withValues(alpha: 0.06),
                     shape: BoxShape.circle,
                   ),
                   padding: const EdgeInsets.all(26),
                   child: Image.asset(
-                    'assets/workforge_logo.png',
+                    'assets/stafivo_logo.png',
                     fit: BoxFit.contain,
                   ),
                 ),
               ),
               const SizedBox(height: 28),
-              Text(
-                'WorkForge Worker App',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: scheme.primary,
-                      letterSpacing: 0.6,
-                    ),
+              // Brand name
+              const Text(
+                'STAFIVO',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: StafivoColors.primary,
+                  letterSpacing: 4,
+                ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Safety-first attendance',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurface.withValues(alpha: 0.6),
-                      letterSpacing: 0.3,
-                    ),
+              // Tagline
+              const Text(
+                'Smart Workforce. Seamless Operations.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: StafivoColors.textSecondary,
+                  letterSpacing: 0.3,
+                ),
+              ),
+              const SizedBox(height: 6),
+              // Developer credit
+              const Text(
+                'Powered by Pent 26',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: StafivoColors.textMuted,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.2,
+                ),
               ),
             ],
           ),

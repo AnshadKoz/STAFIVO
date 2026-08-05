@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 120" fill="none">
+  <!-- Icon mark (scaled down) -->
+  <g transform="translate(0, 8) scale(0.42)">
+    <!-- Top bar — deep navy -->
+    <rect x="44" y="18" width="128" height="42" rx="10" ry="10" fill="#0A1F5C" transform="skewX(-12)"/>
+    <!-- Middle bar — medium blue -->
+    <rect x="24" y="82" width="148" height="42" rx="10" ry="10" fill="#0D3080" transform="skewX(-12)"/>
+    <!-- Bottom-left teal accent -->
+    <rect x="14" y="148" width="55" height="42" rx="8" ry="8" fill="#0E9C8F" transform="skewX(-12)"/>
+    <!-- Bottom-right teal accent -->
+    <rect x="88" y="148" width="74" height="56" rx="8" ry="8" fill="#0E9C8F" transform="skewX(-12)"/>
+  </g>
+  <!-- STAFIVO wordmark -->
+  <text x="115" y="65" font-family="'Inter', 'Segoe UI', sans-serif" font-weight="700" font-size="52" letter-spacing="6" fill="#0A1F5C">STAFIVO</text>
+  <!-- Teal dot on the A in STAFIVO -->
+  <circle cx="198" cy="45" r="4" fill="#0E9C8F"/>
+</svg>

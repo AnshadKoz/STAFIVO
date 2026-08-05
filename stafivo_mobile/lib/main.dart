@@ -7,6 +7,7 @@ import 'screens/checkin_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/sync_service.dart';
+import 'theme/stafivo_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,58 +20,20 @@ Future<void> main() async {
 
   await SyncService.start();
 
-  runApp(const WorkForgeApp());
+  runApp(const StafivoApp());
 }
 
-class WorkForgeApp extends StatelessWidget {
-  const WorkForgeApp({super.key});
+/// Root application widget for STAFIVO.
+/// Built by Pent 26.
+class StafivoApp extends StatelessWidget {
+  const StafivoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: const Color(0xFF16A34A),
-      brightness: Brightness.light,
-    );
     return MaterialApp(
-      title: 'WorkForge Worker App',
+      title: 'STAFIVO',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: scheme,
-        scaffoldBackgroundColor: Colors.white,
-        useMaterial3: true,
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: scheme.primary,
-          elevation: 0,
-          centerTitle: true,
-          titleTextStyle: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 20,
-          ),
-        ),
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            side: BorderSide(color: scheme.primary),
-            foregroundColor: scheme.primary,
-            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            foregroundColor: scheme.primary,
-            textStyle: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-        ),
-      ),
+      theme: stafivoTheme(),
       home: const SplashScreen(),
       routes: {
         '/welcome': (_) => const WelcomeScreen(),

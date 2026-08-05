@@ -205,6 +205,13 @@ export async function fetchPayrollSlipAction(
   _prevState: PayrollSlipState,
   formData: FormData
 ): Promise<PayrollSlipState> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const supabase = await createClient()
 
   const workerId = formData.get('worker_id') as string | null
@@ -425,6 +432,13 @@ export async function fetchWorkerStatsAction(
   _prevState: WorkerStatsState,
   formData: FormData
 ): Promise<WorkerStatsState> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const supabase = await createClient()
   const outletId = formData.get('outlet_id') as string | null
 
@@ -441,6 +455,13 @@ export async function exportPayrollStatsAction(
   _prevState: ExportPayrollState,
   formData: FormData
 ): Promise<ExportPayrollState> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const supabase = await createClient()
   const outletId = formData.get('outlet_id') as string | null
 
@@ -472,6 +493,13 @@ export async function previewPayrollForMonthAction(
   _prevState: PayrollGenerationState,
   formData: FormData
 ): Promise<PayrollGenerationState> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const supabase = await createClient()
   const month = formData.get('month') as string | null
   const outletId = formData.get('outlet_id') as string | null

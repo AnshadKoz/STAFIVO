@@ -13,6 +13,13 @@ const success = (message?: string): ActionResult => ({ status: 'success', messag
 const failure = (message?: string): ActionResult => ({ status: 'error', message })
 
 export async function saveOutletAction(_prevState: ActionResult, formData: FormData): Promise<ActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const supabase = await createClient()
 
   const outletId = (formData.get('outlet_id') as string | null) ?? null
@@ -46,6 +53,13 @@ export async function saveOutletAction(_prevState: ActionResult, formData: FormD
 }
 
 export async function deleteOutletAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const supabase = await createClient()
   const outletId = formData.get('outlet_id') as string | null
   if (!outletId) return failure('Missing outlet id')
@@ -61,6 +75,13 @@ export async function deleteOutletAction(_prev: ActionResult, formData: FormData
 }
 
 export async function createManagerAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const supabase = await createClient()
 
   const mode = (formData.get('mode') as string) || 'existing'
@@ -152,6 +173,13 @@ export async function createManagerAction(_prev: ActionResult, formData: FormDat
 }
 
 export async function updateManagerAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const supabase = await createClient()
 
   const managerId = formData.get('manager_id') as string | null
@@ -186,6 +214,13 @@ export async function updateManagerAction(_prev: ActionResult, formData: FormDat
 }
 
 export async function approveWorkerRequestAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const supabase = await createClient()
   const requestId = formData.get('request_id') as string | null
   const adminComment = (formData.get('admin_comment') as string | null)?.trim() ?? null
@@ -222,7 +257,7 @@ export async function approveWorkerRequestAction(_prev: ActionResult, formData: 
   // The validation in createWorkerAction checks for email if passed. 
   // If email is missing, we can generate a placeholder based on phone? 
   // For now, let's assume email is preferred or we error if missing for Auth creation.
-  const emailToUse = request.email || `worker_${request.phone}@railrolls.local`
+  const emailToUse = request.email || `worker_${request.phone}@stafivo.local`
 
   try {
     const { data: authData, error: authError } = await service.auth.admin.createUser({
@@ -325,6 +360,13 @@ export async function approveWorkerRequestAction(_prev: ActionResult, formData: 
 }
 
 export async function rejectWorkerRequestAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const supabase = await createClient()
   const requestId = formData.get('request_id') as string | null
   const adminComment = (formData.get('admin_comment') as string | null)?.trim()
@@ -390,6 +432,13 @@ export async function logAdminAttendanceAction(
   _prev: ActionResult,
   formData: FormData
 ): Promise<ActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const supabase = await createClient()
   const workerId = formData.get('worker_id') as string | null
   const actionValue = (formData.get('action') as 'IN' | 'OUT' | null) ?? 'IN'
@@ -455,6 +504,13 @@ export async function logAdminAttendanceAction(
 }
 
 export async function createWorkerAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   // Use service client to bypass RLS for admin actions
   const supabase = createServiceClient()
 
@@ -488,7 +544,7 @@ export async function createWorkerAction(_prev: ActionResult, formData: FormData
 
   // Create Supabase Auth User first
   let authUserId: string | null = null
-  const emailToUse = email || `worker_${phone}@railrolls.local`
+  const emailToUse = email || `worker_${phone}@stafivo.local`
 
   try {
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
@@ -509,9 +565,6 @@ export async function createWorkerAction(_prev: ActionResult, formData: FormData
 
   // Get current user for created_by field
   const regularClient = await createClient()
-  const {
-    data: { user },
-  } = await regularClient.auth.getUser()
 
   let creatorAppUserId: string | null = null
   if (user) {
@@ -568,6 +621,13 @@ export async function createWorkerAction(_prev: ActionResult, formData: FormData
 }
 
 export async function updateWorkerAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const supabase = createServiceClient()
   const workerId = formData.get('worker_id') as string | null
   const name = (formData.get('name') as string | null)?.trim()
@@ -605,6 +665,13 @@ export async function updateWorkerAction(_prev: ActionResult, formData: FormData
 }
 
 export async function resetWorkerPasswordAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const workerId = formData.get('worker_id') as string | null
   const newPassword = (formData.get('new_password') as string | null)?.trim()
 
@@ -641,6 +708,13 @@ export async function resetWorkerPasswordAction(_prev: ActionResult, formData: F
 }
 
 export async function resetManagerPasswordAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+  const supabaseAuth = await createClient();
+  const { data: { user } } = await supabaseAuth.auth.getUser();
+  if (!user) return { status: 'error', message: 'Unauthorized' };
+  
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
+
   const appUserId = formData.get('app_user_id') as string | null
   const newPassword = (formData.get('new_password') as string | null)?.trim()
 

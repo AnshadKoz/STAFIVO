@@ -12,7 +12,7 @@ class OfflineQueue {
     if (_db != null) return;
 
     final dir = await getApplicationDocumentsDirectory();
-    final path = p.join(dir.path, 'railrolls_queue.db');
+    final path = p.join(dir.path, 'stafivo_queue.db');
     _db = await openDatabase(
       path,
       version: 2,

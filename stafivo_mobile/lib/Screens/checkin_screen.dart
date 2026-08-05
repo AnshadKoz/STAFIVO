@@ -16,7 +16,7 @@ import '../navigation/route_observer.dart';
 import '../services/offline_queue.dart';
 import '../services/supabase_repo.dart';
 import '../widgets/face_frame_overlay.dart';
-import '../widgets/workforge_app_bar.dart';
+import '../widgets/stafivo_app_bar.dart';
 import '../widgets/alert_dialog_helper.dart';
 
 class CheckInScreen extends StatefulWidget {
@@ -36,6 +36,8 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   static const String _outletPrefKey = 'selected_outlet_id';
 
   CameraController? _camera;
+  int _pendingCount = 0;
+  Timer? _pendingTimer;
   final FaceCropper _cropper = FaceCropper();
   final MobileFaceNetEmbedder _embedder = MobileFaceNetEmbedder();
   bool _ready = false;
@@ -63,6 +65,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   void initState() {
     super.initState();
     _initAll();
+    _pendingTimer = Timer.periodic(const Duration(seconds: 5), (_) => _checkPendingQueue());
   }
 
   @override
@@ -72,6 +75,15 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     if (route is PageRoute && route.isCurrent) {
       railRouteObserver.unsubscribe(this);
       railRouteObserver.subscribe(this, route);
+    }
+  }
+
+  Future<void> _checkPendingQueue() async {
+    final list = await OfflineQueue.pending();
+    if (mounted && _pendingCount != list.length) {
+      setState(() {
+        _pendingCount = list.length;
+      });
     }
   }
 
@@ -406,6 +418,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     _disposeCameraController(updateState: false);
     _cropper.close();
     _embedder.close();
+    _pendingTimer?.cancel();
     super.dispose();
   }
 
@@ -1036,7 +1049,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                  borderRadis: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(18),
                 ),
                 child: Text(
                   message,

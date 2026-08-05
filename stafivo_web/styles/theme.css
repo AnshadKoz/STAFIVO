@@ -1,0 +1,54 @@
+/* ============================================================
+   STAFIVO Design Tokens
+   Brand by Pent 26 — Do not hardcode colors elsewhere.
+   Import this file once in globals.css via @import.
+   ============================================================ */
+
+:root {
+  /* Primary palette */
+  --stafivo-primary:          #0F3D91;
+  --stafivo-primary-hover:    #0a2d6e;
+  --stafivo-secondary:        #1E63FF;
+  --stafivo-accent:           #4DA3FF;
+  --stafivo-teal:             #0E9C8F;
+
+  /* Surface & Background */
+  --stafivo-bg:               #F8FAFC;
+  --stafivo-surface:          #FFFFFF;
+  --stafivo-surface-hover:    #EAF2FF;
+
+  /* Text */
+  --stafivo-text-primary:     #0F172A;
+  --stafivo-text-secondary:   #64748B;
+  --stafivo-text-muted:       #94A3B8;
+
+  /* Border */
+  --stafivo-border:           #E2E8F0;
+  --stafivo-border-focus:     #1E63FF;
+
+  /* Semantic */
+  --stafivo-success:          #22C55E;
+  --stafivo-success-bg:       #F0FDF4;
+  --stafivo-warning:          #F59E0B;
+  --stafivo-warning-bg:       #FFFBEB;
+  --stafivo-error:            #EF4444;
+  --stafivo-error-bg:         #FEF2F2;
+  --stafivo-info:             #2563EB;
+  --stafivo-info-bg:          #EFF6FF;
+
+  /* Scrollbar */
+  --stafivo-scrollbar-thumb:  #93C5FD;
+  --stafivo-scrollbar-track:  #EFF6FF;
+
+  /* Shadow */
+  --stafivo-shadow-sm:        0 1px 3px 0 rgb(15 61 145 / 0.08);
+  --stafivo-shadow-md:        0 4px 16px 0 rgb(15 61 145 / 0.10);
+  --stafivo-shadow-lg:        0 10px 40px 0 rgb(15 61 145 / 0.12);
+
+  /* Radius */
+  --stafivo-radius-sm:        8px;
+  --stafivo-radius-md:        12px;
+  --stafivo-radius-lg:        16px;
+  --stafivo-radius-xl:        24px;
+  --stafivo-radius-full:      9999px;
+}

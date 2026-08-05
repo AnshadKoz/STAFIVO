@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../enroll/enroll_logic.dart';
 import '../services/supabase_repo.dart';
 import '../widgets/face_frame_overlay.dart';
-import '../widgets/workforge_app_bar.dart';
+import '../widgets/stafivo_app_bar.dart';
 import '../widgets/alert_dialog_helper.dart';
 
 class EnrollScreen extends StatefulWidget {
@@ -512,7 +512,7 @@ class _EnrollScreenState extends State<EnrollScreen> {
         }
       },
       child: Scaffold(
-        appBar: workForgeAppBar(context, 'Face Enrollment'),
+        appBar: stafivoAppBar(context, 'Face Enrollment'),
         body: !_ready
             ? const Center(child: CircularProgressIndicator())
             : SafeArea(

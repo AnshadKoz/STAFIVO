@@ -43,7 +43,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
           <div
             key={toast.id}
             className={`min-w-[240px] rounded-2xl px-4 py-3 text-sm shadow-lg transition ${toast.type === 'success'
-                ? 'bg-emerald-600 text-white'
+                ? 'bg-blue-600 text-white'
                 : toast.type === 'error'
                   ? 'bg-rose-50 text-rose-700'
                   : 'bg-gray-900/90 text-white'

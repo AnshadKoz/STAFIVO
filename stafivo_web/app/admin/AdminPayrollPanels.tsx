@@ -34,7 +34,7 @@ const initialPayrollPreviewState: PayrollGenerationState = { status: 'idle' }
 const initialPayrollSlipState: PayrollSlipState = { status: 'idle' }
 
 const formatCurrency = (value: number | null | undefined) => {
-  if (typeof value !== 'number') return '₹0.00'
+  if (typeof value !== 'number') return 'â‚¹0.00'
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -54,7 +54,7 @@ const formatMonthYear = (monthKey: string) => {
 }
 
 const getOutletName = (outlets: OutletOption[], outletId: string | null) =>
-  outlets.find(o => o.id === outletId)?.name || '—'
+  outlets.find(o => o.id === outletId)?.name || 'â€”'
 
 const PayrollRunTable = ({
   rows,
@@ -75,7 +75,7 @@ const PayrollRunTable = ({
         <div>
           <h3 className="text-lg font-semibold">
             Payroll run
-            {month ? ` – ${formatMonthYear(month)}` : ''}
+            {month ? ` â€“ ${formatMonthYear(month)}` : ''}
           </h3>
           <p className="text-sm text-gray-500">Summary for all workers for this month.</p>
         </div>
@@ -92,7 +92,7 @@ const PayrollRunTable = ({
 
       <div className="px-6 py-4">
         {rows.length === 0 ? (
-          <p className="text-sm text-gray-500">No payroll rows for this month yet.</p>
+          <div className="flex flex-col items-center justify-center py-12 text-center"><svg className="w-16 h-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg><h3 className="text-sm font-semibold text-gray-900">No records found</h3><p className="mt-1 text-sm text-gray-500">There are currently no rows to display for this selection.</p></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
@@ -112,7 +112,7 @@ const PayrollRunTable = ({
                 {rows.map(row => (
                   <tr key={row.workerId} className="border-b border-gray-100">
                     <td className="py-1.5 px-2">{row.workerName}</td>
-                    <td className="py-1.5 px-2">{row.outletName ?? '—'}</td>
+                    <td className="py-1.5 px-2">{row.outletName ?? 'â€”'}</td>
                     <td className="py-1.5 px-2 text-right">{row.workedHours.toFixed(2)}</td>
                     <td className="py-1.5 px-2 text-right">{formatCurrency(row.baseSalary)}</td>
                     <td className="py-1.5 px-2 text-right">{formatCurrency(row.overtime)}</td>
@@ -171,7 +171,7 @@ const PayslipCard = ({ state, onPrint }: { state: PayrollSlipState, onPrint?: ()
     >
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
         <div>
-          <h2 className="text-xl font-semibold">WorkForge · Payslip</h2>
+          <h2 className="text-xl font-semibold">STAFIVO آ· Payslip</h2>
           <p className="text-sm text-gray-500">
             Payroll for {formatMonthYear(slip.payrollMonth)}
           </p>
@@ -195,7 +195,7 @@ const PayslipCard = ({ state, onPrint }: { state: PayrollSlipState, onPrint?: ()
           </div>
           <div>
             <div className="text-xs uppercase tracking-wide text-gray-500">Outlet</div>
-            <div className="text-base font-semibold text-gray-900">{slip.outletName || '—'}</div>
+            <div className="text-base font-semibold text-gray-900">{slip.outletName || 'â€”'}</div>
           </div>
           <div>
             <div className="text-xs uppercase tracking-wide text-gray-500">Worked hours (month)</div>
@@ -283,7 +283,7 @@ const WorkerStatsTable = ({ rows, onPrint }: { rows: WorkerStatsRow[], onPrint?:
     </div>
     <div className="px-6 py-4">
       {rows.length === 0 ? (
-        <p className="text-sm text-gray-500">No worker data found.</p>
+        <div className="flex flex-col items-center justify-center py-12 text-center"><svg className="w-16 h-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg><h3 className="text-sm font-semibold text-gray-900">No records found</h3><p className="mt-1 text-sm text-gray-500">There are currently no rows to display for this selection.</p></div>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-sm">
@@ -317,22 +317,22 @@ const WorkerStatsTable = ({ rows, onPrint }: { rows: WorkerStatsRow[], onPrint?:
 )
 
 export default function AdminPayrollPanels({ workers, outlets }: AdminPayrollPanelsProps) {
-  const [generateState, generateFormAction] = useActionState(
+  const [generateState, generateFormAction, isGeneratePending] = useActionState(
     generatePayrollForMonthAction,
     initialPayrollGenerationState
   )
 
-  const [previewState, previewFormAction] = useActionState(
+  const [previewState, previewFormAction, isPreviewPending] = useActionState(
     previewPayrollForMonthAction,
     initialPayrollPreviewState
   )
 
-  const [payslipState, payslipFormAction] = useActionState(
+  const [payslipState, payslipFormAction, isPayslipPending] = useActionState(
     fetchPayrollSlipAction,
     initialPayrollSlipState
   )
 
-  const [exportState, exportFormAction] = useActionState(
+  const [exportState, exportFormAction, isExportPending] = useActionState(
     exportPayrollStatsAction,
     { status: 'idle' } as ExportPayrollState
   )
@@ -349,7 +349,7 @@ export default function AdminPayrollPanels({ workers, outlets }: AdminPayrollPan
     }
   }, [exportState])
 
-  const [reportState, reportFormAction] = useActionState(
+  const [reportState, reportFormAction, isReportPending] = useActionState(
     fetchWorkerStatsAction,
     { status: 'idle' } as WorkerStatsState
   )
@@ -431,17 +431,15 @@ export default function AdminPayrollPanels({ workers, outlets }: AdminPayrollPan
             </div>
 
             <button
-              type="submit"
-              formAction={previewFormAction}
+              type="submit" disabled={isPreviewPending} formAction={previewFormAction}
               className="inline-flex items-center rounded-lg bg-white border border-gray-300 px-5 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition"
             >
               Preview payroll
             </button>
 
             <button
-              type="submit"
-              formAction={generateFormAction}
-              className="inline-flex items-center rounded-lg bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 transition"
+              type="submit" disabled={isGeneratePending} formAction={generateFormAction}
+              className="inline-flex items-center rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
               Generate payroll
             </button>
@@ -480,7 +478,7 @@ export default function AdminPayrollPanels({ workers, outlets }: AdminPayrollPan
                       {previewState.rows?.map(row => (
                         <tr key={row.workerId}>
                           <td className="py-2 px-4">{row.workerName}</td>
-                          <td className="py-2 px-4 text-gray-500">{row.outletName || '—'}</td>
+                          <td className="py-2 px-4 text-gray-500">{row.outletName || 'â€”'}</td>
                           <td className="py-2 px-4 text-right">{row.workedHours.toFixed(2)}</td>
                           <td className="py-2 px-4 text-right">{formatCurrency(row.baseSalary)}</td>
                           <td className="py-2 px-4 text-right">{formatCurrency(row.overtime)}</td>
@@ -503,7 +501,7 @@ export default function AdminPayrollPanels({ workers, outlets }: AdminPayrollPan
                 <button
                   type="button"
                   onClick={() => handlePrint('payroll-run')}
-                  className="inline-flex items-center rounded-md border border-emerald-500 px-3 py-1.5 font-medium text-emerald-600 hover:bg-emerald-50 transition print:hidden"
+                  className="inline-flex items-center rounded-md border border-blue-500 px-3 py-1.5 font-medium text-blue-600 hover:bg-blue-50 transition print:hidden"
                 >
                   Print payroll run
                 </button>
@@ -535,7 +533,7 @@ export default function AdminPayrollPanels({ workers, outlets }: AdminPayrollPan
         <div className="space-y-4 px-6 py-5">
           {/* Form (hidden in print) */}
           <div className="print:hidden">
-            <form action={payslipFormAction} className="flex flex-wrap gap-4 items-end">
+            <form action={payslipFormAction} className="flex gap-4 items-end">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">
                   Payroll month
@@ -661,4 +659,9 @@ export default function AdminPayrollPanels({ workers, outlets }: AdminPayrollPan
     </div>
   )
 }
+
+
+
+
+
 
