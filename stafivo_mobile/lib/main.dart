@@ -5,6 +5,7 @@ import 'navigation/route_observer.dart';
 import 'screens/enroll_screen.dart';
 import 'screens/checkin_screen.dart';
 import 'screens/splash_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/sync_service.dart';
 import 'theme/stafivo_theme.dart';
@@ -36,6 +37,7 @@ class StafivoApp extends StatelessWidget {
       theme: stafivoTheme(),
       home: const SplashScreen(),
       routes: {
+        '/login': (_) => const LoginScreen(),
         '/welcome': (_) => const WelcomeScreen(),
         '/check': (_) => const CheckInScreen(),
       },

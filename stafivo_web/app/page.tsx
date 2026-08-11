@@ -41,7 +41,7 @@ export default async function Home() {
 
   if (appUser.role === 'admin') redirect('/admin')
   if (appUser.role === 'manager') redirect('/manager')
-  if (appUser.role === 'worker') redirect('/worker')
+  if (appUser.role === 'worker') redirect('/unauthorized')
 
   console.log('[ROOT PAGE] No role matched, redirecting to /login')
   redirect('/login')
