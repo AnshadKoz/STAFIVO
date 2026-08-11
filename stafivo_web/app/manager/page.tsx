@@ -25,6 +25,15 @@ export default async function ManagerPage() {
     .eq('auth_id', user.id)
     .single()
 
+  if (!profile) {
+    redirect('/login')
+  }
+
+  // Role guard: only manager or admin may access this page
+  if (profile.role !== 'manager' && profile.role !== 'admin') {
+    redirect('/unauthorized')
+  }
+
   type ManagerRecordRow = {
     id: string
     outlet_id: string | null
