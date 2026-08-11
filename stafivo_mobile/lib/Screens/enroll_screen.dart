@@ -1,5 +1,4 @@
 import 'dart:developer' as developer;
-import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -200,7 +199,7 @@ class _EnrollScreenState extends State<EnrollScreen> {
 
       for (var i = 0; i < captureCount; i++) {
         final shot = await camera.takePicture();
-        final bytes = await File(shot.path).readAsBytes();
+        final bytes = await shot.readAsBytes();
         frames.add(CapturedFrame(bytes: bytes, path: shot.path));
         if (i < captureCount - 1) {
           await Future.delayed(const Duration(milliseconds: 350));

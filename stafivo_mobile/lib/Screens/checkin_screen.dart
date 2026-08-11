@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'dart:async';
 import 'dart:developer' as developer;
 
@@ -578,7 +576,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
 
   Future<bool> _verifyFace() async {
     final shot = await _camera!.takePicture();
-    final bytes = await File(shot.path).readAsBytes();
+    final bytes = await shot.readAsBytes();
     final tensor = await _cropper.cropAndPreprocess(
       bytes,
       imagePath: shot.path,

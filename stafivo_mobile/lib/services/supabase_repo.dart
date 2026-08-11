@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:developer' as developer;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -209,8 +208,6 @@ class SupabaseRepo {
       throw AttendanceServerDenied(e.message);
     } on AuthException catch (e) {
       throw AttendanceAuthError(e.message);
-    } on SocketException catch (e) {
-      throw AttendanceNetworkError(e.message);
     } catch (e) {
       throw AttendanceNetworkError(e.toString());
     }
