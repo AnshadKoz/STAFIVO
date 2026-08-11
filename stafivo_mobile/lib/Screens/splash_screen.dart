@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/stafivo_colors.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -46,7 +47,14 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _bootstrap() {
     if (!mounted) return;
-    Navigator.of(context).pushReplacementNamed('/welcome');
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session != null) {
+      // User is already logged in — continue to the existing welcome/check flow
+      Navigator.of(context).pushReplacementNamed('/welcome');
+    } else {
+      // No session — show login screen
+      Navigator.of(context).pushReplacementNamed('/login');
+    }
   }
 
   @override
