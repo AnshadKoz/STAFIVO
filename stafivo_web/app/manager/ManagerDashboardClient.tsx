@@ -2486,6 +2486,11 @@ export default function ManagerDashboardClient({
                 className="h-11 w-auto object-contain flex-shrink-0"
                 style={{ filter: 'brightness(1.15) drop-shadow(0 0 8px rgba(129,140,248,0.45))' }}
               />
+              {profile?.role === 'admin' ? (
+                <span className="rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-semibold">Admin</span>
+              ) : profile?.role === 'manager' ? (
+                <span className="rounded-full bg-blue-600 text-white px-3 py-1 text-xs font-semibold">manager</span>
+              ) : null}
             </div>
             <div className="mt-3 flex items-center gap-1.5">
               <span className="live-dot w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
