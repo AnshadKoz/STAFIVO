@@ -71,7 +71,7 @@ const actionInit: WorkerActionResult = { status: 'idle' }
 const currency = (value: number | null | undefined) =>
   typeof value === 'number'
     ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(value)
-    : 'â‚¹0.00'
+    : '₹0.00'
 
 const rate = (value: number | null | undefined) =>
   typeof value === 'number' ? `${currency(value)}/hr` : 'Not set'
@@ -272,7 +272,7 @@ export default function WorkerDashboardClient({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-4">
-                <img src="/brand/stafivo-logo.png" alt="STAFIVO" className="h-14 w-auto object-contain" />
+                <img src="/brand/stafivo-logo.png" alt="STAFIVO" className="h-20 w-auto object-contain" />
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 leading-none">
                     {worker.name}
@@ -281,7 +281,7 @@ export default function WorkerDashboardClient({
                     </span>
                   </h1>
                   <p className="mt-1 text-sm font-medium text-gray-500">
-                    My Dashboard {worker.outlets?.name ? `آ· ${worker.outlets.name}` : ''}
+                    My Dashboard {worker.outlets?.name ? `· ${worker.outlets.name}` : ''}
                   </p>
                 </div>
               </div>
@@ -343,7 +343,7 @@ export default function WorkerDashboardClient({
           </div>
         </section>
 
-        {/* Salary History â€” full width so the 6-column table never overflows */}
+        {/* Salary History — full width so the 6-column table never overflows */}
         <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Salary History</h2>
           <p className="mt-1 text-sm text-gray-500">All payroll records for your account</p>
@@ -379,7 +379,7 @@ export default function WorkerDashboardClient({
           </div>
         </section>
 
-        {/* Recent Adjustments â€” full width below */}
+        {/* Recent Adjustments — full width below */}
         <section className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Recent adjustments</h2>
           <p className="mt-1 text-sm text-gray-500">Includes OT, fines, incentives, deductions.</p>
@@ -394,9 +394,9 @@ export default function WorkerDashboardClient({
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-gray-900">
-                      {adj.kind.toUpperCase()} آ· {new Date(adj.effective_date).toLocaleDateString('en-IN')}
+                      {adj.kind.toUpperCase()} · {new Date(adj.effective_date).toLocaleDateString('en-IN')}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">{adj.note ?? 'â€”'}</p>
+                    <p className="text-xs text-gray-500 truncate">{adj.note ?? '—'}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <p className="text-sm font-semibold text-gray-900">
@@ -469,7 +469,7 @@ export default function WorkerDashboardClient({
                       <p className="text-xs text-gray-500">Upload clear photos or PDFs.</p>
                     </div>
                     <label className="cursor-pointer rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100">
-                      {uploading === kind ? 'Uploadingâ€¦' : hasDocs ? 'Re-upload' : 'Upload'}
+                      {uploading === kind ? 'Uploading…' : hasDocs ? 'Re-upload' : 'Upload'}
                       <input
                         type="file"
                         accept="image/*,application/pdf"

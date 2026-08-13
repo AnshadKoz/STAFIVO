@@ -62,7 +62,7 @@ export default function LoginPage() {
             <img
               src="/brand/stafivo-logo.png"
               alt="STAFIVO"
-              className="h-20 w-auto object-contain"
+              className="h-28 w-auto object-contain"
             />
             <h1 className="mt-5 text-2xl font-bold tracking-tight text-blue-950">
               STAFIVO <span className="text-blue-600">Console</span>

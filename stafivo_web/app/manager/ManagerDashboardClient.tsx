@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { FormEvent, ReactNode, useActionState, useEffect, useRef, useState, useTransition } from 'react'
 import {
@@ -484,7 +484,7 @@ export default function ManagerDashboardClient({
     if (outletName) return outletName
     return managerOutletName
   }
-  const title = dashboardTitle ?? (isAdmin ? 'STAFIVO آ· Admin Dashboard' : 'STAFIVO آ· Manager Dashboard')
+  const title = dashboardTitle ?? (isAdmin ? 'STAFIVO · Admin Dashboard' : 'STAFIVO · Manager Dashboard')
 
   const openAppealModal = (appeal: FineAppealRow) => {
     setCurrentAppeal(appeal)
@@ -1001,12 +1001,12 @@ export default function ManagerDashboardClient({
               className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           ) : (
-            <input
+              <input
               type="number"
               step="0.01"
               value={adjustmentForm.amount}
               onChange={e => setAdjustmentForm({ ...adjustmentForm, amount: e.target.value })}
-              placeholder="Amount (أ¢â€ڑآ¹)"
+                placeholder="Amount (₹)"
               className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           )}
@@ -1084,9 +1084,9 @@ export default function ManagerDashboardClient({
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold uppercase text-xs text-gray-600">{adj.kind}</span>
-                      <span className="text-gray-400">ط¢آ·</span>
+                      <span className="text-gray-400">·</span>
                       <span className="text-gray-900 font-medium">
-                        {adj.kind === 'ot' ? `${adj.hours} hrs` : `أ¢â€ڑآ¹${adj.amount}`}
+                        {adj.kind === 'ot' ? `${adj.hours} hrs` : `₹${adj.amount}`}
                       </span>
                       {/* Creator Badge */}
                       {adj.creator_role && (
@@ -1099,7 +1099,7 @@ export default function ManagerDashboardClient({
                       )}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {new Date(adj.effective_date).toLocaleDateString('en-IN')}{adj.note ? ` ط¢آ· ${adj.note}` : ''}
+                      {new Date(adj.effective_date).toLocaleDateString('en-IN')}{adj.note ? ` · ${adj.note}` : ''}
                       {adj.status && (
                         <span className={`ml-2 inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${adj.status === 'pending' ? 'bg-amber-100 text-amber-800' :
                           adj.status === 'approved' ? 'bg-green-100 text-green-800' :
@@ -1180,7 +1180,7 @@ export default function ManagerDashboardClient({
                     step="0.01"
                     value={form.base_salary_per_hour}
                     onChange={e => setForm({ ...form, base_salary_per_hour: e.target.value })}
-                    placeholder="Base rate (أ¢â€ڑآ¹/hr)"
+                    placeholder="Base rate (₹/hr)"
                     className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <input
@@ -1188,7 +1188,7 @@ export default function ManagerDashboardClient({
                     step="0.01"
                     value={form.ot_rate_per_hour}
                     onChange={e => setForm({ ...form, ot_rate_per_hour: e.target.value })}
-                    placeholder="OT rate (أ¢â€ڑآ¹/hr)"
+                    placeholder="OT rate (₹/hr)"
                     className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <div className="relative">
@@ -1263,7 +1263,7 @@ export default function ManagerDashboardClient({
                     name="base_salary_per_hour"
                     value={form.base_salary_per_hour}
                     onChange={e => setForm({ ...form, base_salary_per_hour: e.target.value })}
-                    placeholder="Base rate (أ¢â€ڑآ¹/hr)"
+                    placeholder="Base rate (₹/hr)"
                     className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                   <input
@@ -1272,7 +1272,7 @@ export default function ManagerDashboardClient({
                     name="ot_rate_per_hour"
                     value={form.ot_rate_per_hour}
                     onChange={e => setForm({ ...form, ot_rate_per_hour: e.target.value })}
-                    placeholder="OT rate (أ¢â€ڑآ¹/hr)"
+                    placeholder="OT rate (₹/hr)"
                     className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
@@ -1335,8 +1335,8 @@ export default function ManagerDashboardClient({
                       <td className="px-3 py-2 text-gray-600">
                         {worker.outletName ?? resolveOutletName(worker.outlet_id)}
                       </td>
-                      <td className="px-3 py-2 text-gray-600">{worker.phone ?? 'أ¢â‚¬â€‌'}</td>
-                      <td className="px-3 py-2 text-gray-600">{worker.email ?? 'أ¢â‚¬â€‌'}</td>
+                      <td className="px-3 py-2 text-gray-600">{worker.phone ?? '—'}</td>
+                      <td className="px-3 py-2 text-gray-600">{worker.email ?? '—'}</td>
                       <td className="px-3 py-2 text-gray-600">{formatRate(worker.base_salary_per_hour)}</td>
                       <td className="px-3 py-2 text-gray-600">{formatRate(worker.ot_rate_per_hour)}</td>
                       {isAdmin && (
@@ -1610,7 +1610,7 @@ export default function ManagerDashboardClient({
                         <p className="text-sm font-semibold">{log.worker_name ?? 'Worker'}</p>
                         {sourceBadge}
                       </div>
-                      <p className="text-xs text-gray-500">{log.outlet_name ?? 'Outlet'} ط¢آ· {log.action}</p>
+                      <p className="text-xs text-gray-500">{log.outlet_name ?? 'Outlet'} · {log.action}</p>
                     </div>
                     <p className="text-xs text-gray-500">{formatAttendanceTime(log.timestamp_utc)}</p>
                   </div>
@@ -1626,7 +1626,7 @@ export default function ManagerDashboardClient({
       title: 'Adjustments',
       description: 'Insert OT, fines, incentives, or deductions.',
       accent: 'from-blue-400 to-cyan-400',
-      stat: 'أ¢â€ڑآ¹',
+      stat: '₹',
       detail: 'Manual edits',
       content: renderAdjustmentsContent(),
     },
@@ -1646,8 +1646,8 @@ export default function ManagerDashboardClient({
         detail: 'Pending approvals',
         content: (
           <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              Submit new Workers through the أ¢â‚¬إ“Add workerأ¢â‚¬â€Œ form above. Every pending request shows up here until admin
+              <p className="text-sm text-gray-600">
+              Submit new Workers through the "Add worker" form above. Every pending request shows up here until admin
               responds.
             </p>
             <div className="space-y-3">
@@ -1659,7 +1659,7 @@ export default function ManagerDashboardClient({
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-semibold text-gray-900">{request.name}</p>
-                        <p className="text-xs text-gray-500">{request.email ?? request.phone ?? 'أ¢â‚¬â€‌'}</p>
+                        <p className="text-xs text-gray-500">{request.email ?? request.phone ?? '—'}</p>
                       </div>
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-semibold ${request.status === 'pending'
@@ -1736,7 +1736,7 @@ export default function ManagerDashboardClient({
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{worker.name}</p>
                     <p className="text-xs text-gray-500">
-                      {outlets.find(o => o.id === worker.outlet_id)?.name ?? 'أ¢â‚¬â€‌'}
+                      {outlets.find(o => o.id === worker.outlet_id)?.name ?? '—'}
                     </p>
                   </div>
                   <button
@@ -1757,7 +1757,7 @@ export default function ManagerDashboardClient({
         title: 'Payroll Preview',
         description: 'Preview payroll for your outlet workers (read-only).',
         accent: 'from-blue-400 to-indigo-500',
-        stat: 'أ¢â€ڑآ¹',
+        stat: '₹',
         detail: 'Preview only',
         content: (
           <div className="space-y-4">
@@ -1845,11 +1845,11 @@ export default function ManagerDashboardClient({
                           <tr key={row.workerId} className="border-b border-gray-100">
                             <td className="py-2 px-3 font-medium">{row.workerName}</td>
                             <td className="py-2 px-3 text-right">{(row.workedHours ?? 0).toFixed(2)}</td>
-                            <td className="py-2 px-3 text-right">أ¢â€ڑآ¹{(row.baseSalary ?? 0).toFixed(2)}</td>
-                            <td className="py-2 px-3 text-right">أ¢â€ڑآ¹{(row.overtime ?? 0).toFixed(2)}</td>
-                            <td className="py-2 px-3 text-right">أ¢â€ڑآ¹{(row.incentives ?? 0).toFixed(2)}</td>
-                            <td className="py-2 px-3 text-right">أ¢â€ڑآ¹{(row.fines ?? 0).toFixed(2)}</td>
-                            <td className="py-2 px-3 text-right font-semibold">أ¢â€ڑآ¹{(row.total ?? 0).toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right">₹{(row.baseSalary ?? 0).toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right">₹{(row.overtime ?? 0).toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right">₹{(row.incentives ?? 0).toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right">₹{(row.fines ?? 0).toFixed(2)}</td>
+                            <td className="py-2 px-3 text-right font-semibold">₹{(row.total ?? 0).toFixed(2)}</td>
                           </tr>
                         ));
                       })()}
@@ -1949,7 +1949,7 @@ export default function ManagerDashboardClient({
                   <div>
                     <p className="text-sm font-semibold">{outlet.name}</p>
                     <p className="text-xs text-gray-500">
-                      Lat {outlet.latitude ?? 'أ¢â‚¬â€‌'} ط¢آ· Lng {outlet.longitude ?? 'أ¢â‚¬â€‌'} ط¢آ· Radius {outlet.radius_meters ?? 'أ¢â‚¬â€‌'} m
+                      Lat {outlet.latitude ?? '—'} · Lng {outlet.longitude ?? '—'} · Radius {outlet.radius_meters ?? '—'} m
                     </p>
                   </div>
                   <div className="flex gap-3">
@@ -2118,7 +2118,7 @@ export default function ManagerDashboardClient({
                     return (
                       <tr key={row.id} className="border-t border-gray-100">
                         <td className="px-3 py-2 font-semibold">{row.name ?? 'Manager'}</td>
-                        <td className="px-3 py-2 text-gray-600">{row.email ?? 'أ¢â‚¬â€‌'}</td>
+                        <td className="px-3 py-2 text-gray-600">{row.email ?? '—'}</td>
                         <td className="px-3 py-2 text-gray-600">
                           <select
                             name="outlet_id"
@@ -2214,7 +2214,7 @@ export default function ManagerDashboardClient({
                   <input type="hidden" name="request_id" value={request.id} />
                   <p className="text-sm font-semibold">{request.name}</p>
                   <p className="text-xs text-gray-500">
-                    {request.email ?? request.phone ?? 'أ¢â‚¬â€‌'} ط¢آ· Outlet: {outlets.find(o => o.id === request.outlet_id)?.name ?? 'أ¢â‚¬â€‌'}
+                    {request.email ?? request.phone ?? '—'} · Outlet: {outlets.find(o => o.id === request.outlet_id)?.name ?? '—'}
                   </p>
                   <textarea
                     name="admin_comment"
@@ -2278,7 +2278,7 @@ export default function ManagerDashboardClient({
         title: 'Payroll & Analytics',
         description: 'Generate payroll runs and print payslips.',
         accent: 'from-blue-600 to-slate-600',
-        stat: 'أ¢â€ڑآ¹',
+        stat: '₹',
         detail: 'Payroll tools',
         content: (
           <div className="space-y-4">
@@ -2375,476 +2375,850 @@ export default function ManagerDashboardClient({
     cards.push(workerAnalyticsCard)
   }
 
-  const notificationCount = notificationRows.filter(n => !n.is_read).length
+  const moduleLabelStyles = [
+    'bg-sky-100 text-sky-700',
+    'bg-amber-100 text-amber-800',
+    'bg-violet-100 text-violet-700',
+    'bg-emerald-100 text-emerald-700',
+    'bg-rose-100 text-rose-700',
+    'bg-fuchsia-100 text-fuchsia-700',
+  ]
 
-  const activeCardContent = cards.find(card => card.id === activeCard)
+  const notificationCount = notificationRows.filter(n => !n.is_read).length
 
   const signOut = async () => {
     await supabase.auth.signOut()
     window.location.href = '/login'
   }
 
+  const getNavIcon = (cardId: string) => {
+    const cls = 'w-4 h-4 flex-shrink-0'
+    switch (cardId) {
+      case 'workers':
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
+      case 'attendance':
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      case 'adjustments':
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" /></svg>
+      case 'requests':
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" /></svg>
+      case 'appeals':
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+      case 'documents':
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+      case 'payroll-preview':
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
+      case 'analytics':
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>
+      case 'managers':
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg>
+      case 'outlets':
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" /></svg>
+      case 'payroll':
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+      case 'pending-workers':
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+      default:
+        return <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
+    }
+  }
+
+  const activeCardData = cards.find(c => c.id === activeCard)
+
   return (
     <AuthGate>
-      <div className="min-h-screen bg-gradient-to-b from-white via-blue-50 to-white text-gray-900">
-        <header className="bg-white/70 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-6">
-            <div>
-              <div className="flex items-center gap-4">
-                <img src="/brand/stafivo-logo.png" alt="STAFIVO" className="h-14 w-auto object-contain" />
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 leading-none">
-                    {profile?.name ?? 'User'}
-                    <span className="ml-2 rounded-full bg-blue-100 px-3 py-0.5 text-sm font-medium text-blue-800 align-middle">
-                      {isAdmin ? 'Admin' : 'Manager'}
+      {/* ── Global animation styles ── */}
+      <style>{`
+        @keyframes dashFadeUp {
+          from { opacity: 0; transform: translateY(14px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes dashSlideRight {
+          from { opacity: 0; transform: translateX(-10px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes dashShimmer {
+          0%   { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        @keyframes pulseLive {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50%       { opacity: 0.5; transform: scale(0.75); }
+        }
+        @keyframes notifSlide {
+          from { opacity: 0; transform: translateX(20px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        .dash-panel   { animation: dashFadeUp 0.32s cubic-bezier(0.16,1,0.3,1) both; }
+        .dash-nav     { transition: all 0.14s ease; }
+        .dash-nav:hover { transform: translateX(3px); }
+        .live-dot     { animation: pulseLive 2s ease-in-out infinite; }
+        .notif-panel  { animation: notifSlide 0.25s cubic-bezier(0.16,1,0.3,1) both; }
+        .shimmer-btn  { position: relative; overflow: hidden; }
+        .shimmer-btn::after {
+          content: '';
+          position: absolute; inset: 0;
+          background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.09) 50%, transparent 60%);
+          background-size: 200% 100%;
+          opacity: 0; transition: opacity 0.2s;
+        }
+        .shimmer-btn:hover::after { opacity: 1; animation: dashShimmer 0.6s ease; }
+        .stat-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .stat-card:hover { transform: translateY(-4px); }
+        select, input, textarea {
+          color: inherit;
+        }
+      `}</style>
+
+      <div className="flex h-screen overflow-hidden" style={{ background: '#0B1628' }}>
+
+        {/* ════════════════ SIDEBAR ════════════════ */}
+        <aside
+          className="w-[232px] flex-shrink-0 flex flex-col"
+          style={{ background: '#0B1628', borderRight: '1px solid rgba(255,255,255,0.055)' }}
+        >
+          {/* Logo */}
+          <div className="px-5 pt-5 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+            <div className="flex items-center gap-3">
+              <img
+                src="/brand/stafivo-logo.png"
+                alt="STAFIVO"
+                className="h-11 w-auto object-contain flex-shrink-0"
+                style={{ filter: 'brightness(1.15) drop-shadow(0 0 8px rgba(129,140,248,0.45))' }}
+              />
+            </div>
+            <div className="mt-3 flex items-center gap-1.5">
+              <span className="live-dot w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+              <span className="text-[10px] font-bold tracking-[0.18em] text-emerald-400/75 uppercase">Live</span>
+            </div>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-px">
+            {/* Overview */}
+            <button
+              type="button"
+              onClick={() => setActiveCard(null)}
+              className={`dash-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium ${
+                activeCard === null
+                  ? 'bg-indigo-500/[0.15] text-indigo-300 ring-1 ring-indigo-500/25'
+                  : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.05]'
+              }`}
+            >
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+              </svg>
+              Overview
+              {activeCard === null && <span className="ml-auto w-1 h-1 rounded-full bg-indigo-400" />}
+            </button>
+
+            {/* Section label */}
+            <p className="px-3 pt-5 pb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
+              Operations
+            </p>
+
+            {/* Module nav items */}
+            {cards.map(card => {
+              const hasBadge = (card.id === 'pending-workers' || card.id === 'requests') && parseInt(card.stat) > 0
+              const isActive = activeCard === card.id
+              return (
+                <button
+                  key={card.id}
+                  type="button"
+                  onClick={() => setActiveCard(card.id)}
+                  className={`dash-nav w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium ${
+                    isActive
+                      ? 'bg-indigo-500/[0.15] text-indigo-300 ring-1 ring-indigo-500/25'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.05]'
+                  }`}
+                >
+                  {getNavIcon(card.id)}
+                  <span className="flex-1 text-left truncate">{card.title}</span>
+                  {hasBadge && (
+                    <span className="flex-shrink-0 rounded-full bg-rose-500/20 text-rose-400 text-[10px] font-bold px-1.5 py-0.5 min-w-[1.25rem] text-center">
+                      {card.stat}
                     </span>
-                  </h1>
-                  <p className="mt-1 text-sm font-medium text-gray-500">
-                    {isAdmin ? 'Admin Console' : 'Manager Dashboard'} ط¢آ· {managerOutletName}
-                  </p>
-                </div>
+                  )}
+                  {isActive && !hasBadge && <span className="ml-auto w-1 h-1 rounded-full bg-indigo-400 flex-shrink-0" />}
+                </button>
+              )
+            })}
+          </nav>
+
+          {/* User footer */}
+          <div className="px-4 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0">
+                {(profile?.name ?? 'A')[0].toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-semibold text-slate-200 truncate">{profile?.name ?? 'Admin'}</p>
+                <p className="text-[10px] text-slate-500 capitalize tracking-wide">{profile?.role}</p>
+              </div>
+              <button
+                type="button"
+                onClick={signOut}
+                title="Sign out"
+                className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all group"
+              >
+                <svg className="w-5 h-5 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+                </svg>
+                <span className="text-[9px] font-semibold uppercase tracking-wider leading-none">Logout</span>
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* ════════════════ MAIN PANE ════════════════ */}
+        <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#F1F5F9' }}>
+
+          {/* ── TOPBAR ── */}
+          <header
+            className="flex-shrink-0 flex items-center justify-between px-6 gap-6"
+            style={{ height: '72px', background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid #E2E8F0', boxShadow: '0 1px 8px rgba(15,23,42,0.06)' }}
+          >
+            {/* Logo + Breadcrumb */}
+            <div className="flex items-center gap-4 min-w-0">
+              {/* STAFIVO logo */}
+              <img
+                src="/brand/stafivo-logo.png"
+                alt="STAFIVO"
+                className="h-14 w-auto object-contain flex-shrink-0"
+                style={{ filter: 'drop-shadow(0 1px 3px rgba(79,70,229,0.18))' }}
+              />
+              {/* Divider */}
+              <div className="w-px h-8 bg-slate-200 flex-shrink-0" />
+              {/* Breadcrumb */}
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                  {isAdmin ? 'Admin Console' : 'Manager Console'}
+                </p>
+                <h1 className="text-base font-bold text-slate-900 leading-snug truncate">
+                  {activeCard === null ? 'Dashboard Overview' : (activeCardData?.title ?? '')}
+                </h1>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              {!isAdmin ? (
+
+            {/* Right controls */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {/* Live badge */}
+              <div className="hidden sm:flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200/80 px-3.5 py-2">
+                <span className="live-dot w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                <span className="text-xs font-semibold text-emerald-700">Live</span>
+              </div>
+
+              {/* Refresh */}
+              <button
+                type="button"
+                onClick={() => startTransition(() => router.refresh())}
+                disabled={isPending}
+                title="Refresh data"
+                className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <svg className={`w-5 h-5 ${isPending ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+              </button>
+
+              {/* Notifications (manager only) */}
+              {!isAdmin && (
                 <button
                   type="button"
-                  className="relative rounded-full bg-blue-50 p-3 text-blue-600 shadow ring-1 ring-blue-100"
                   onClick={() => setNotificationPanelOpen(prev => !prev)}
-                  aria-label="Open notifications"
+                  className="relative w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 >
-                  ظ‹ع؛â€‌â€‌
-                  {notificationCount ? (
-                    <span className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1.5 text-[10px] font-semibold text-white">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                  </svg>
+                  {notificationCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 flex items-center justify-center rounded-full bg-rose-500 text-[9px] font-bold text-white leading-none">
                       {notificationCount}
                     </span>
-                  ) : null}
+                  )}
                 </button>
-              ) : null}
-              <button
-                onClick={signOut}
-                className="rounded-full bg-gray-900/90 px-5 py-2.5 text-sm font-semibold text-white shadow transition hover:bg-gray-900"
-              >
-                Sign out
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <main className="mx-auto max-w-6xl px-6 pb-16">
-          <section className="grid gap-4 py-8 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-              <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">This week</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{summary.weeklyHours.toFixed(1)} hrs</p>
-              <p className="text-sm text-gray-500">Hours tracked</p>
-            </div>
-            <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-              <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">This month</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{summary.monthlyHours.toFixed(1)} hrs</p>
-              <p className="text-sm text-gray-500">Hours tracked</p>
-            </div>
-            <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-              <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">Workers</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">{workers.length}</p>
-              <p className="text-sm text-gray-500">Active profiles</p>
-            </div>
-            <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg">
-              <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">
-                {isAdmin ? 'Focus' : 'My outlet'}
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-gray-900">{managerOutletName}</p>
-              <p className="text-sm text-gray-500">
-                {isAdmin ? 'Monitoring every location' : 'Requests & attendance use this outlet'}
-              </p>
-            </div>
-          </section>
-
-          <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {cards.map(card => (
-              <button
-                key={card.id}
-                type="button"
-                onClick={() => setActiveCard(card.id)}
-                className="group rounded-3xl border border-blue-50 bg-white p-5 text-left shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
-              >
-                <div className={`inline-flex rounded-full bg-gradient-to-r ${card.accent} px-3 py-1 text-xs font-semibold text-white`}>
-                  {card.title}
-                </div>
-                <p className="mt-3 text-sm text-gray-500">{card.description}</p>
-                <div className="mt-6 flex items-end justify-between">
-                  <p className="text-3xl font-bold text-gray-900">{card.stat}</p>
-                  <p className="text-sm text-gray-500">{card.detail}</p>
-                </div>
-                <p className="mt-4 text-sm font-semibold text-blue-600">Open panel أ¢â€ â€™</p>
-              </button>
-            ))}
-          </section>
-        </main>
-
-        <Modal
-          open={Boolean(activeCardContent)}
-          onClose={() => setActiveCard(null)}
-          title={activeCardContent?.title}
-          description={activeCardContent?.description}
-          wide
-        >
-          {activeCardContent?.content}
-        </Modal>
-
-        <Modal
-          open={Boolean(currentAppeal)}
-          onClose={closeAppealModal}
-          title={currentAppeal ? currentAppeal.worker_name ?? 'Worker' : 'Review appeal'}
-          description={currentAppeal ? `Filed ${formatDateTime(currentAppeal.created_at)}` : undefined}
-          wide={false}
-        >
-          {currentAppeal ? (
-            <form action={respondToAppealAction} className="space-y-4">
-              <input type="hidden" name="appeal_id" value={currentAppeal.id} />
-              <input type="hidden" name="decision" value={appealDecision} />
-              <div className="rounded-2xl bg-blue-50/80 px-4 py-3 text-sm text-gray-600">
-                <p className="font-semibold text-gray-900">Worker reason</p>
-                <p className="mt-1">{currentAppeal.reason}</p>
-              </div>
-              <textarea
-                name="response"
-                value={appealResponse}
-                onChange={e => setAppealResponse(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="Optional response to worker"
-              />
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <button
-                  type="submit"
-                  onClick={() => handleDecisionSelect('approve')}
-                  disabled={appealActionPending}
-                  className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow ${appealActionPending ? 'cursor-not-allowed bg-blue-400 opacity-80' : 'bg-blue-600 hover:bg-blue-700'
-                    }`}
-                >
-                  {appealActionPending && appealDecision === 'approve' ? 'Approving...' : 'Approve'}
-                </button>
-                <button
-                  type="submit"
-                  onClick={() => handleDecisionSelect('reject')}
-                  disabled={appealActionPending}
-                  className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-red-700 shadow ${appealActionPending ? 'cursor-not-allowed bg-red-100 opacity-80' : 'bg-red-50 hover:bg-red-100'
-                    }`}
-                >
-                  {appealActionPending && appealDecision === 'reject' ? 'Rejecting...' : 'Reject'}
-                </button>
-              </div>
-              {appealActionState.status === 'error' && appealActionState.message ? (
-                <p className="text-xs text-red-500">{appealActionState.message}</p>
-              ) : null}
-            </form>
-          ) : null}
-        </Modal>
-
-        <Modal
-          open={documentsModal.open}
-          onClose={() => setDocumentsModal({ open: false, workerId: '' })}
-          title="Worker documents"
-          description="Download submitted files."
-          wide={false}
-        >
-          {documentsLoading ? (
-            <p className="text-sm text-gray-500">Loading documents...</p>
-          ) : documents.length === 0 ? (
-            <p className="text-sm text-gray-500">No documents uploaded yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {documents.map(doc => (
-                <div key={doc.id} className="flex items-center justify-between rounded-xl border border-gray-100 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">{doc.original_name}</p>
-                    <p className="text-xs text-gray-500">
-                      {doc.kind} ط¢آ· {new Date(doc.created_at).toLocaleDateString('en-IN')}
-                    </p>
-                  </div>
-                  {doc.signedUrl ? (
-                    <a
-                      href={doc.signedUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm font-semibold text-blue-600 hover:text-blue-700"
-                    >
-                      Download
-                    </a>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          )}
-        </Modal>
-
-        {/* Edit Worker Modal */}
-        <Modal
-          open={editingWorker !== null}
-          onClose={() => {
-            setEditingWorker(null)
-            setWorkerEditForm({ name: '', outlet_id: '', base_salary_per_hour: '', ot_rate_per_hour: '' })
-          }}
-          title="Edit Worker"
-          description="Update worker details"
-          wide={false}
-        >
-          {editingWorker && (
-            <form action={updateWorkerFormAction} className="space-y-4">
-              <input type="hidden" name="worker_id" value={editingWorker.id} />
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={workerEditForm.name}
-                  onChange={e => setWorkerEditForm({ ...workerEditForm, name: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Outlet</label>
-                <select
-                  name="outlet_id"
-                  value={workerEditForm.outlet_id}
-                  onChange={e => setWorkerEditForm({ ...workerEditForm, outlet_id: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">Select outlet</option>
-                  {outlets.map(outlet => (
-                    <option key={outlet.id} value={outlet.id}>
-                      {outlet.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Base Rate (أ¢â€ڑآ¹/hr)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  name="base_salary_per_hour"
-                  value={workerEditForm.base_salary_per_hour}
-                  onChange={e => setWorkerEditForm({ ...workerEditForm, base_salary_per_hour: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">OT Rate (أ¢â€ڑآ¹/hr)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  name="ot_rate_per_hour"
-                  value={workerEditForm.ot_rate_per_hour}
-                  onChange={e => setWorkerEditForm({ ...workerEditForm, ot_rate_per_hour: e.target.value })}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  className="flex-1 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
-                >
-                  Save Changes
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingWorker(null)
-                    setWorkerEditForm({ name: '', outlet_id: '', base_salary_per_hour: '', ot_rate_per_hour: '' })
-                  }}
-                  className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
-              {updateWorkerState.status === 'success' && updateWorkerState.message && (
-                <p className="text-sm text-green-600">{updateWorkerState.message}</p>
               )}
-              {updateWorkerState.status === 'error' && updateWorkerState.message && (
-                <p className="text-sm text-red-600">{updateWorkerState.message}</p>
-              )}
-            </form>
-          )}
-        </Modal>
 
-        {/* Reset Password Modal */}
-        <Modal
-          open={resettingPasswordFor !== null}
-          onClose={() => {
-            setResettingPasswordFor(null)
-            setNewPassword('')
-            setShowPassword(false)
-          }}
-          title={resettingPasswordFor?.type === 'worker' ? 'Reset Worker Password' : 'Reset Manager Password'}
-          description="Set a new password for this user"
-          wide={false}
-        >
-          {resettingPasswordFor && (
-            <form action={resettingPasswordFor.type === 'worker' ? resetPasswordFormAction : resetManagerPasswordFormAction} className="space-y-4">
-              <input type="hidden" name={resettingPasswordFor.type === 'worker' ? 'worker_id' : 'app_user_id'} value={resettingPasswordFor.type === 'worker' ? resettingPasswordFor.id : resettingPasswordFor.appUserId} />
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">New Password</label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="new_password"
-                    value={newPassword}
-                    onChange={e => setNewPassword(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    {showPassword ? 'ظ‹ع؛â€کظ¾أ¯آ¸عˆ' : 'ظ‹ع؛â€کظ¾أ¯آ¸عˆأ¢â‚¬ع†ظ‹ع؛â€”آ¨أ¯آ¸عˆ'}
-                  </button>
-                </div>
-                <p className="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
+              {/* Avatar */}
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center text-sm font-bold text-white">
+                {(profile?.name ?? 'A')[0].toUpperCase()}
               </div>
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  className="flex-1 rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-orange-700"
-                >
-                  Reset Password
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResettingPasswordFor(null)
-                    setNewPassword('')
-                    setShowPassword(false)
-                  }}
-                  className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
-              {(resettingPasswordFor.type === 'worker' ? resetPasswordState : resetManagerPasswordState).status === 'success' && (resettingPasswordFor.type === 'worker' ? resetPasswordState : resetManagerPasswordState).message && (
-                <p className="text-sm text-green-600">{(resettingPasswordFor.type === 'worker' ? resetPasswordState : resetManagerPasswordState).message}</p>
-              )}
-              {(resettingPasswordFor.type === 'worker' ? resetPasswordState : resetManagerPasswordState).status === 'error' && (resettingPasswordFor.type === 'worker' ? resetPasswordState : resetManagerPasswordState).message && (
-                <p className="text-sm text-red-600">{(resettingPasswordFor.type === 'worker' ? resetPasswordState : resetManagerPasswordState).message}</p>
-              )}
-            </form>
-          )}
-        </Modal>
+            </div>
+          </header>
 
-        <Modal
-          open={deleteConfirmation.open}
-          onClose={() => setDeleteConfirmation({ id: null, open: false })}
-          title="Delete adjustment?"
-          description="This action cannot be undone."
-          wide={false}
-        >
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={confirmDeleteAdjustment}
-              className="flex-1 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-red-700"
-            >
-              Delete
-            </button>
-            <button
-              type="button"
-              onClick={() => setDeleteConfirmation({ id: null, open: false })}
-              className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-          </div>
-        </Modal>
+          {/* ── CONTENT ── */}
+          <main className="flex-1 overflow-y-auto">
+            {activeCard === null ? (
+              /* ════ HOME / OVERVIEW ════ */
+              <div className="p-6 space-y-6 dash-panel">
 
-        {notificationPanelOpen ? (
-          <div className="fixed inset-0 z-40 flex justify-end bg-black/20">
-            <div className="relative w-full max-w-sm bg-white shadow-2xl">
-              <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+                {/* Greeting */}
                 <div>
-                  <p className="text-sm font-semibold text-gray-900">Notifications</p>
-                  <p className="text-xs text-gray-500">Latest updates</p>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Welcome back</p>
+                  <h2 className="mt-1 text-2xl font-extrabold text-slate-900 tracking-tight">
+                    {profile?.name ?? 'Administrator'}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {isAdmin ? 'Full control across all outlets and managers.' : `Managing ${managerOutletName}`}
+                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setNotificationPanelOpen(false)}
-                  className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                >
-                  أ¢إ“â€¢
-                </button>
-              </div>
-              <div className="max-h-[70vh] space-y-3 overflow-y-auto px-5 py-4">
-                {notificationRows.length === 0 ? (
-                  <p className="text-sm text-gray-500">No notifications yet.</p>
-                ) : (
-                  notificationRows.map(notification => (
+
+                {/* ── Stat cards ── */}
+                <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                  {[
+                    {
+                      label: 'This Week',
+                      value: summary.weeklyHours.toFixed(1),
+                      unit: 'hrs',
+                      sub: 'Hours tracked',
+                      from: '#7C3AED', to: '#4F46E5',
+                      shadow: 'rgba(99,102,241,0.35)',
+                      icon: (
+                        <svg className="w-5 h-5 text-white/70" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ),
+                    },
+                    {
+                      label: 'This Month',
+                      value: summary.monthlyHours.toFixed(1),
+                      unit: 'hrs',
+                      sub: 'Hours tracked',
+                      from: '#0EA5E9', to: '#0284C7',
+                      shadow: 'rgba(14,165,233,0.35)',
+                      icon: (
+                        <svg className="w-5 h-5 text-white/70" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                        </svg>
+                      ),
+                    },
+                    {
+                      label: 'Workforce',
+                      value: workers.length.toString(),
+                      unit: '',
+                      sub: 'Active workers',
+                      from: '#10B981', to: '#059669',
+                      shadow: 'rgba(16,185,129,0.35)',
+                      icon: (
+                        <svg className="w-5 h-5 text-white/70" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                        </svg>
+                      ),
+                    },
+                    isAdmin
+                      ? {
+                        label: 'Outlets',
+                        value: outlets.length.toString(),
+                        unit: '',
+                        sub: 'Locations',
+                        from: '#F59E0B', to: '#D97706',
+                        shadow: 'rgba(245,158,11,0.35)',
+                        icon: (
+                          <svg className="w-5 h-5 text-white/70" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
+                          </svg>
+                        ),
+                      }
+                      : {
+                        label: 'Pending',
+                        value: requests.filter(r => r.status === 'pending').length.toString(),
+                        unit: '',
+                        sub: 'Requests',
+                        from: '#F43F5E', to: '#E11D48',
+                        shadow: 'rgba(244,63,94,0.35)',
+                        icon: (
+                          <svg className="w-5 h-5 text-white/70" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                          </svg>
+                        ),
+                      },
+                  ].map((stat, i) => (
                     <div
-                      key={notification.id}
-                      className={`rounded-2xl border px-4 py-3 ${notification.is_read ? 'border-gray-100 bg-white' : 'border-blue-100 bg-blue-50'
-                        }`}
+                      key={stat.label}
+                      className="stat-card shimmer-btn relative overflow-hidden rounded-2xl p-5"
+                      style={{
+                        background: `linear-gradient(135deg, ${stat.from}, ${stat.to})`,
+                        boxShadow: `0 8px 24px ${stat.shadow}`,
+                        animationDelay: `${i * 55}ms`,
+                      }}
                     >
-                      <p className="text-sm font-semibold">{notification.title}</p>
-                      {notification.body ? (
-                        <p className="text-xs text-gray-600">{notification.body}</p>
-                      ) : null}
-                      <p className="text-[11px] text-gray-500">{formatDateTime(notification.created_at)}</p>
-                      {!notification.is_read ? (
-                        <form action={markNotificationAction} className="mt-2">
-                          <input type="hidden" name="notification_id" value={notification.id} />
-                          <button type="submit" className="text-xs font-semibold text-blue-600">
-                            Mark as read
-                          </button>
-                        </form>
-                      ) : null}
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">{stat.label}</p>
+                          <div className="mt-3 flex items-baseline gap-1">
+                            <span className="text-4xl font-extrabold text-white tracking-tight">{stat.value}</span>
+                            {stat.unit && <span className="text-base font-semibold text-white/65">{stat.unit}</span>}
+                          </div>
+                          <p className="mt-1.5 text-xs text-white/55">{stat.sub}</p>
+                        </div>
+                        <div className="rounded-xl p-2.5 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.12)' }}>
+                          {stat.icon}
+                        </div>
+                      </div>
+                      {/* Decorative rings */}
+                      <div className="pointer-events-none absolute -bottom-5 -right-5 w-20 h-20 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                      <div className="pointer-events-none absolute -bottom-9 -right-9 w-28 h-28 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
                     </div>
-                  ))
-                )}
+                  ))}
+                </div>
+
+                {/* ── Two-column: System overview + Recent attendance ── */}
+                <div className="grid gap-5 xl:grid-cols-[340px_1fr]">
+
+                  {/* System overview */}
+                  <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-5">
+                      <h3 className="text-sm font-bold text-slate-900">System Overview</h3>
+                      <span className="rounded-full bg-indigo-50 border border-indigo-100 px-2.5 py-1 text-[11px] font-bold text-indigo-600 uppercase tracking-wide">
+                        {isAdmin ? 'Admin' : 'Manager'}
+                      </span>
+                    </div>
+                    <div className="space-y-3.5">
+                      {[
+                        { label: 'Active Workers', value: workers.length, color: '#10B981', bg: '#ECFDF5' },
+                        ...(isAdmin ? [
+                          { label: 'Outlets', value: outlets.length, color: '#3B82F6', bg: '#EFF6FF' },
+                          { label: 'Managers', value: resolvedManagerRows.length, color: '#8B5CF6', bg: '#F5F3FF' },
+                          { label: 'Pending Requests', value: requests.length, color: '#F43F5E', bg: '#FFF1F2' },
+                        ] : [
+                          { label: 'Pending Requests', value: requests.filter(r => r.status === 'pending').length, color: '#F43F5E', bg: '#FFF1F2' },
+                          { label: 'Pending Appeals', value: appeals.length, color: '#F59E0B', bg: '#FFFBEB' },
+                        ]),
+                      ].map(item => (
+                        <div key={item.label} className="flex items-center gap-3 group">
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: item.bg }}>
+                            <span className="w-2 h-2 rounded-full" style={{ background: item.color }} />
+                          </div>
+                          <span className="flex-1 text-sm text-slate-600">{item.label}</span>
+                          <span className="text-sm font-extrabold text-slate-900">{item.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {/* Quick jumps */}
+                    <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setActiveCard('workers')}
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition-all"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
+                        Workforce
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveCard('attendance')}
+                        className="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition-all"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Attendance
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Recent attendance */}
+                  <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-bold text-slate-900">Recent Attendance</h3>
+                      <button
+                        type="button"
+                        onClick={() => setActiveCard('attendance')}
+                        className="text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors flex items-center gap-1"
+                      >
+                        View all
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75" /></svg>
+                      </button>
+                    </div>
+                    <div className="space-y-1">
+                      {attendance.slice(0, 7).length === 0 ? (
+                        <div className="py-8 text-center">
+                          <p className="text-sm text-slate-400">No attendance logs yet</p>
+                        </div>
+                      ) : (
+                        attendance.slice(0, 7).map((item, i) => (
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 transition-colors"
+                            style={{ animationDelay: `${i * 35}ms` }}
+                          >
+                            <div
+                              className="w-2 h-2 rounded-full flex-shrink-0"
+                              style={{ background: item.action === 'IN' ? '#10B981' : '#F43F5E' }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-slate-900 truncate">{item.worker_name}</p>
+                              <p className="text-xs text-slate-500 truncate">{item.outlet_name}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <span
+                                className="inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold"
+                                style={item.action === 'IN'
+                                  ? { background: '#ECFDF5', color: '#065F46' }
+                                  : { background: '#FFF1F2', color: '#9F1239' }
+                                }
+                              >
+                                {item.action}
+                              </span>
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                {formatAttendanceTime(item.timestamp_utc).split(',')[1]?.trim() ?? ''}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Quick Access module grid ── */}
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 mb-3">Quick Access</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {cards.map((card, i) => (
+                      <button
+                        key={card.id}
+                        type="button"
+                        onClick={() => setActiveCard(card.id)}
+                        className="shimmer-btn flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left hover:border-indigo-300 hover:shadow-md transition-all duration-200 group"
+                      >
+                        <div
+                          className="w-9 h-9 rounded-xl flex items-center justify-center"
+                          style={{ background: '#EEF2FF' }}
+                        >
+                          <div style={{ color: '#6366F1' }}>
+                            {getNavIcon(card.id)}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">{card.title}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5 truncate">{card.detail}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
               </div>
-            </div>
-          </div>
-        ) : null}
+
+            ) : (
+
+              /* ════ PANEL VIEW ════ */
+              <div key={activeCard} className="p-6 dash-panel">
+                <div className="max-w-5xl mx-auto">
+
+                  {/* Panel header */}
+                  <div className="flex items-start justify-between gap-4 mb-6">
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setActiveCard(null)}
+                        className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors mb-2 group"
+                      >
+                        <svg className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                        </svg>
+                        Overview
+                      </button>
+                      <h2 className="text-xl font-extrabold text-slate-900 tracking-tight">{activeCardData?.title}</h2>
+                      <p className="text-sm text-slate-500 mt-0.5">{activeCardData?.description}</p>
+                    </div>
+
+                    {/* Stat pill */}
+                    <div className="flex-shrink-0 rounded-2xl border border-indigo-100 px-4 py-2.5 text-center" style={{ background: '#EEF2FF' }}>
+                      <p className="text-2xl font-extrabold text-indigo-700 leading-tight">{activeCardData?.stat}</p>
+                      <p className="text-[11px] text-indigo-400 mt-0.5">{activeCardData?.detail}</p>
+                    </div>
+                  </div>
+
+                  {/* Panel content */}
+                  <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6">
+                    {activeCardData?.content}
+                  </div>
+                </div>
+              </div>
+            )}
+          </main>
+        </div>
       </div>
 
-      {/* Outlet Delete Confirmation Modal */}
+      {/* ════════════════ MODALS ════════════════ */}
+
+      {/* Appeal review modal */}
+      <Modal
+        open={Boolean(currentAppeal)}
+        onClose={closeAppealModal}
+        title={currentAppeal ? currentAppeal.worker_name ?? 'Worker' : 'Review appeal'}
+        description={currentAppeal ? `Filed ${formatDateTime(currentAppeal.created_at)}` : undefined}
+        wide={false}
+      >
+        {currentAppeal ? (
+          <form action={respondToAppealAction} className="space-y-4">
+            <input type="hidden" name="appeal_id" value={currentAppeal.id} />
+            <input type="hidden" name="decision" value={appealDecision} />
+            <div className="rounded-2xl bg-blue-50/80 px-4 py-3 text-sm text-gray-600">
+              <p className="font-semibold text-gray-900">Worker reason</p>
+              <p className="mt-1">{currentAppeal.reason}</p>
+            </div>
+            <textarea
+              name="response"
+              value={appealResponse}
+              onChange={e => setAppealResponse(e.target.value)}
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Optional response to worker"
+            />
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="submit"
+                onClick={() => handleDecisionSelect('approve')}
+                disabled={appealActionPending}
+                className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow ${appealActionPending ? 'cursor-not-allowed bg-blue-400 opacity-80' : 'bg-blue-600 hover:bg-blue-700'}`}
+              >
+                {appealActionPending && appealDecision === 'approve' ? 'Approving...' : 'Approve'}
+              </button>
+              <button
+                type="submit"
+                onClick={() => handleDecisionSelect('reject')}
+                disabled={appealActionPending}
+                className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold text-red-700 shadow ${appealActionPending ? 'cursor-not-allowed bg-red-100 opacity-80' : 'bg-red-50 hover:bg-red-100'}`}
+              >
+                {appealActionPending && appealDecision === 'reject' ? 'Rejecting...' : 'Reject'}
+              </button>
+            </div>
+            {appealActionState.status === 'error' && appealActionState.message ? (
+              <p className="text-xs text-red-500">{appealActionState.message}</p>
+            ) : null}
+          </form>
+        ) : null}
+      </Modal>
+
+      {/* Worker documents modal */}
+      <Modal
+        open={documentsModal.open}
+        onClose={() => setDocumentsModal({ open: false, workerId: '' })}
+        title="Worker documents"
+        description="Download submitted files."
+        wide={false}
+      >
+        {documentsLoading ? (
+          <p className="text-sm text-gray-500">Loading documents...</p>
+        ) : documents.length === 0 ? (
+          <p className="text-sm text-gray-500">No documents uploaded yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {documents.map(doc => (
+              <div key={doc.id} className="flex items-center justify-between rounded-xl border border-gray-100 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">{doc.original_name}</p>
+                  <p className="text-xs text-gray-500">{doc.kind} · {new Date(doc.created_at).toLocaleDateString('en-IN')}</p>
+                </div>
+                {doc.signedUrl ? (
+                  <a href={doc.signedUrl} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+                    Download
+                  </a>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
+
+      {/* Edit Worker modal */}
+      <Modal
+        open={editingWorker !== null}
+        onClose={() => { setEditingWorker(null); setWorkerEditForm({ name: '', outlet_id: '', base_salary_per_hour: '', ot_rate_per_hour: '' }) }}
+        title="Edit Worker"
+        description="Update worker details"
+        wide={false}
+      >
+        {editingWorker && (
+          <form action={updateWorkerFormAction} className="space-y-4">
+            <input type="hidden" name="worker_id" value={editingWorker.id} />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
+              <input
+                type="text" name="name" value={workerEditForm.name}
+                onChange={e => setWorkerEditForm({ ...workerEditForm, name: e.target.value })}
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Outlet</label>
+              <select
+                name="outlet_id" value={workerEditForm.outlet_id}
+                onChange={e => setWorkerEditForm({ ...workerEditForm, outlet_id: e.target.value })}
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">Select outlet</option>
+                {outlets.map(outlet => <option key={outlet.id} value={outlet.id}>{outlet.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Base Rate (₹/hr)</label>
+              <input
+                type="number" step="0.01" name="base_salary_per_hour" value={workerEditForm.base_salary_per_hour}
+                onChange={e => setWorkerEditForm({ ...workerEditForm, base_salary_per_hour: e.target.value })}
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">OT Rate (₹/hr)</label>
+              <input
+                type="number" step="0.01" name="ot_rate_per_hour" value={workerEditForm.ot_rate_per_hour}
+                onChange={e => setWorkerEditForm({ ...workerEditForm, ot_rate_per_hour: e.target.value })}
+                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex gap-3">
+              <button type="submit" className="flex-1 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700">Save Changes</button>
+              <button
+                type="button"
+                onClick={() => { setEditingWorker(null); setWorkerEditForm({ name: '', outlet_id: '', base_salary_per_hour: '', ot_rate_per_hour: '' }) }}
+                className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >Cancel</button>
+            </div>
+            {updateWorkerState.status === 'success' && updateWorkerState.message && <p className="text-sm text-green-600">{updateWorkerState.message}</p>}
+            {updateWorkerState.status === 'error' && updateWorkerState.message && <p className="text-sm text-red-600">{updateWorkerState.message}</p>}
+          </form>
+        )}
+      </Modal>
+
+      {/* Reset Password modal */}
+      <Modal
+        open={resettingPasswordFor !== null}
+        onClose={() => { setResettingPasswordFor(null); setNewPassword(''); setShowPassword(false) }}
+        title={resettingPasswordFor?.type === 'worker' ? 'Reset Worker Password' : 'Reset Manager Password'}
+        description="Set a new password for this user"
+        wide={false}
+      >
+        {resettingPasswordFor && (
+          <form action={resettingPasswordFor.type === 'worker' ? resetPasswordFormAction : resetManagerPasswordFormAction} className="space-y-4">
+            <input type="hidden" name={resettingPasswordFor.type === 'worker' ? 'worker_id' : 'app_user_id'} value={resettingPasswordFor.type === 'worker' ? resettingPasswordFor.id : resettingPasswordFor.appUserId} />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">New Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'} name="new_password" value={newPassword}
+                  onChange={e => setNewPassword(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  required minLength={6}
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Minimum 6 characters</p>
+            </div>
+            <div className="flex gap-3">
+              <button type="submit" className="flex-1 rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-orange-700">Reset Password</button>
+              <button
+                type="button"
+                onClick={() => { setResettingPasswordFor(null); setNewPassword(''); setShowPassword(false) }}
+                className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >Cancel</button>
+            </div>
+            {(resettingPasswordFor.type === 'worker' ? resetPasswordState : resetManagerPasswordState).status === 'success' && (resettingPasswordFor.type === 'worker' ? resetPasswordState : resetManagerPasswordState).message && (
+              <p className="text-sm text-green-600">{(resettingPasswordFor.type === 'worker' ? resetPasswordState : resetManagerPasswordState).message}</p>
+            )}
+            {(resettingPasswordFor.type === 'worker' ? resetPasswordState : resetManagerPasswordState).status === 'error' && (resettingPasswordFor.type === 'worker' ? resetPasswordState : resetManagerPasswordState).message && (
+              <p className="text-sm text-red-600">{(resettingPasswordFor.type === 'worker' ? resetPasswordState : resetManagerPasswordState).message}</p>
+            )}
+          </form>
+        )}
+      </Modal>
+
+      {/* Delete adjustment modal */}
+      <Modal
+        open={deleteConfirmation.open}
+        onClose={() => setDeleteConfirmation({ id: null, open: false })}
+        title="Delete adjustment?"
+        description="This action cannot be undone."
+        wide={false}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button type="button" onClick={confirmDeleteAdjustment} className="flex-1 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-red-700">Delete</button>
+          <button type="button" onClick={() => setDeleteConfirmation({ id: null, open: false })} className="flex-1 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
+        </div>
+      </Modal>
+
+      {/* ── Notification panel ── */}
+      {notificationPanelOpen ? (
+        <div className="fixed inset-0 z-40 flex justify-end" style={{ background: 'rgba(0,0,0,0.18)' }} onClick={() => setNotificationPanelOpen(false)}>
+          <div
+            className="relative w-full max-w-sm bg-white shadow-2xl notif-panel"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid #F1F5F9' }}>
+              <div>
+                <p className="text-sm font-bold text-gray-900">Notifications</p>
+                <p className="text-xs text-gray-500">Latest updates</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotificationPanelOpen(false)}
+                className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="max-h-[70vh] space-y-3 overflow-y-auto px-5 py-4">
+              {notificationRows.length === 0 ? (
+                <p className="text-sm text-gray-500">No notifications yet.</p>
+              ) : (
+                notificationRows.map(notification => (
+                  <div
+                    key={notification.id}
+                    className={`rounded-2xl border px-4 py-3 ${notification.is_read ? 'border-gray-100 bg-white' : 'border-blue-100 bg-blue-50'}`}
+                  >
+                    <p className="text-sm font-semibold">{notification.title}</p>
+                    {notification.body ? <p className="text-xs text-gray-600">{notification.body}</p> : null}
+                    <p className="text-[11px] text-gray-500">{formatDateTime(notification.created_at)}</p>
+                    {!notification.is_read ? (
+                      <form action={markNotificationAction} className="mt-2">
+                        <input type="hidden" name="notification_id" value={notification.id} />
+                        <button type="submit" className="text-xs font-semibold text-blue-600">Mark as read</button>
+                      </form>
+                    ) : null}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── Outlet delete confirmation ── */}
       {outletDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <h3 className="text-lg font-semibold text-gray-900">Delete Outlet?</h3>
             <p className="mt-2 text-sm text-gray-600">
               Are you sure you want to delete <strong>{outletDeleteConfirm.name}</strong>? This action cannot be undone.
             </p>
-                          <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Type <strong>{outletDeleteConfirm.name}</strong> to confirm
-                </label>
-                <input
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
-                  placeholder={outletDeleteConfirm.name}
-                />
-              </div>
-              <div className="mt-6 flex justify-end gap-3">
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Type <strong>{outletDeleteConfirm.name}</strong> to confirm
+              </label>
+              <input
+                type="text" value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+                placeholder={outletDeleteConfirm.name}
+              />
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => { setOutletDeleteConfirm(null); setDeleteConfirmText('');; setDeleteConfirmText(''); }}
+                onClick={() => { setOutletDeleteConfirm(null); setDeleteConfirmText('') }}
                 className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
               >
                 Cancel
               </button>
-              <form
-                action={async (formData) => {
-                  await deleteOutletFormAction(formData)
-                  setOutletDeleteConfirm(null); setDeleteConfirmText('');
-                }}
-              >
+              <form action={async (formData) => { await deleteOutletFormAction(formData); setOutletDeleteConfirm(null); setDeleteConfirmText('') }}>
                 <input type="hidden" name="outlet_id" value={outletDeleteConfirm.id} />
                 <button
                   type="submit"
-                  disabled={deleteConfirmText !== outletDeleteConfirm.name} className="rounded-xl bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
+                  disabled={deleteConfirmText !== outletDeleteConfirm.name}
+                  className="rounded-xl bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
                 >
                   Delete
                 </button>
@@ -2898,7 +3272,7 @@ const PayrollPrintView = ({ rows, month }: { rows: PayrollRunRow[], month: strin
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
         <div>
           <h3 className="text-lg font-semibold">
-            Payroll Preview أ¢â‚¬â€œ {month}
+            Payroll Preview – {month}
           </h3>
           <p className="text-sm text-gray-500">Summary for all workers for this month.</p>
         </div>
@@ -2922,17 +3296,17 @@ const PayrollPrintView = ({ rows, month }: { rows: PayrollRunRow[], month: strin
                 <tr key={row.workerId} className="border-b border-gray-100 border-gray-300">
                   <td className="py-1.5 px-2 font-medium">{row.workerName}</td>
                   <td className="py-1.5 px-2 text-right">{(row.workedHours ?? 0).toFixed(2)}</td>
-                  <td className="py-1.5 px-2 text-right">أ¢â€ڑآ¹{(row.baseSalary ?? 0).toFixed(2)}</td>
-                  <td className="py-1.5 px-2 text-right">أ¢â€ڑآ¹{(row.overtime ?? 0).toFixed(2)}</td>
-                  <td className="py-1.5 px-2 text-right">أ¢â€ڑآ¹{(row.incentives ?? 0).toFixed(2)}</td>
-                  <td className="py-1.5 px-2 text-right">أ¢â€ڑآ¹{(row.fines ?? 0).toFixed(2)}</td>
-                  <td className="py-1.5 px-2 text-right font-semibold">أ¢â€ڑآ¹{(row.total ?? 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-2 text-right">₹{(row.baseSalary ?? 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-2 text-right">₹{(row.overtime ?? 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-2 text-right">₹{(row.incentives ?? 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-2 text-right">₹{(row.fines ?? 0).toFixed(2)}</td>
+                  <td className="py-1.5 px-2 text-right font-semibold">₹{(row.total ?? 0).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="mt-8 text-xs text-gray-500 text-center">
-            Generated by STAFIVO آ· Powered by Pent 26
+            <div className="mt-8 text-xs text-gray-500 text-center">
+            Generated by STAFIVO · Powered by Pent 26
           </div>
         </div>
       </div>

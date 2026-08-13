@@ -34,7 +34,7 @@ const initialPayrollPreviewState: PayrollGenerationState = { status: 'idle' }
 const initialPayrollSlipState: PayrollSlipState = { status: 'idle' }
 
 const formatCurrency = (value: number | null | undefined) => {
-  if (typeof value !== 'number') return 'â‚¹0.00'
+  if (typeof value !== 'number') return '₹0.00'
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -54,7 +54,7 @@ const formatMonthYear = (monthKey: string) => {
 }
 
 const getOutletName = (outlets: OutletOption[], outletId: string | null) =>
-  outlets.find(o => o.id === outletId)?.name || 'â€”'
+  outlets.find(o => o.id === outletId)?.name || '—'
 
 const PayrollRunTable = ({
   rows,
@@ -75,7 +75,7 @@ const PayrollRunTable = ({
         <div>
           <h3 className="text-lg font-semibold">
             Payroll run
-            {month ? ` â€“ ${formatMonthYear(month)}` : ''}
+            {month ? ` – ${formatMonthYear(month)}` : ''}
           </h3>
           <p className="text-sm text-gray-500">Summary for all workers for this month.</p>
         </div>
@@ -112,7 +112,7 @@ const PayrollRunTable = ({
                 {rows.map(row => (
                   <tr key={row.workerId} className="border-b border-gray-100">
                     <td className="py-1.5 px-2">{row.workerName}</td>
-                    <td className="py-1.5 px-2">{row.outletName ?? 'â€”'}</td>
+                    <td className="py-1.5 px-2">{row.outletName ?? '—'}</td>
                     <td className="py-1.5 px-2 text-right">{row.workedHours.toFixed(2)}</td>
                     <td className="py-1.5 px-2 text-right">{formatCurrency(row.baseSalary)}</td>
                     <td className="py-1.5 px-2 text-right">{formatCurrency(row.overtime)}</td>
@@ -171,7 +171,7 @@ const PayslipCard = ({ state, onPrint }: { state: PayrollSlipState, onPrint?: ()
     >
       <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
         <div>
-          <h2 className="text-xl font-semibold">STAFIVO آ· Payslip</h2>
+          <h2 className="text-xl font-semibold">STAFIVO · Payslip</h2>
           <p className="text-sm text-gray-500">
             Payroll for {formatMonthYear(slip.payrollMonth)}
           </p>
@@ -195,7 +195,7 @@ const PayslipCard = ({ state, onPrint }: { state: PayrollSlipState, onPrint?: ()
           </div>
           <div>
             <div className="text-xs uppercase tracking-wide text-gray-500">Outlet</div>
-            <div className="text-base font-semibold text-gray-900">{slip.outletName || 'â€”'}</div>
+            <div className="text-base font-semibold text-gray-900">{slip.outletName || '—'}</div>
           </div>
           <div>
             <div className="text-xs uppercase tracking-wide text-gray-500">Worked hours (month)</div>
@@ -478,7 +478,7 @@ export default function AdminPayrollPanels({ workers, outlets }: AdminPayrollPan
                       {previewState.rows?.map(row => (
                         <tr key={row.workerId}>
                           <td className="py-2 px-4">{row.workerName}</td>
-                          <td className="py-2 px-4 text-gray-500">{row.outletName || 'â€”'}</td>
+                          <td className="py-2 px-4 text-gray-500">{row.outletName || '—'}</td>
                           <td className="py-2 px-4 text-right">{row.workedHours.toFixed(2)}</td>
                           <td className="py-2 px-4 text-right">{formatCurrency(row.baseSalary)}</td>
                           <td className="py-2 px-4 text-right">{formatCurrency(row.overtime)}</td>
