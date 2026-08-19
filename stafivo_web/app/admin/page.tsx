@@ -51,6 +51,7 @@ export default async function AdminPage() {
   const { data: workers } = await supabase
     .from('workers')
     .select('id,name,phone,email,outlet_id,base_salary_per_hour,ot_rate_per_hour')
+    .eq('is_deleted', false)
     .order('name')
 
   const { data: logs } = await supabase

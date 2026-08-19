@@ -17,7 +17,7 @@ export async function saveOutletAction(_prevState: ActionResult, formData: FormD
   const { data: { user } } = await supabaseAuth.auth.getUser();
   if (!user) return { status: 'error', message: 'Unauthorized' };
   
-  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('auth_id', user.id).single();
   if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
 
   const supabase = await createClient()
@@ -508,11 +508,17 @@ export async function createWorkerAction(_prev: ActionResult, formData: FormData
   const { data: { user } } = await supabaseAuth.auth.getUser();
   if (!user) return { status: 'error', message: 'Unauthorized' };
   
-  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single();
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('auth_id', user.id).single();
   if (roleData?.role !== 'admin') return { status: 'error', message: 'Forbidden: Admins only' };
 
   // Use service client to bypass RLS for admin actions
-  const supabase = createServiceClient()
+  let supabase
+  try {
+    supabase = createServiceClient()
+  } catch (err: any) {
+    console.error('[createWorkerAction] Missing service client configuration', err?.message || err)
+    return failure('Server configuration error. Contact administrator.')
+  }
 
   const name = (formData.get('name') as string | null)?.trim()
   const phone = (formData.get('phone') as string | null)?.trim()
@@ -558,8 +564,8 @@ export async function createWorkerAction(_prev: ActionResult, formData: FormData
       return failure(authError?.message ?? 'Auth creation failed')
     }
     authUserId = authData.user.id
-  } catch (err) {
-    console.error('[createWorkerAction] Service error during auth creation', err)
+  } catch (err: any) {
+    console.error('[createWorkerAction] Service error during auth creation', err?.message || err)
     return failure('System error creating login credentials')
   }
 
@@ -736,4 +742,201 @@ export async function resetManagerPasswordAction(_prev: ActionResult, formData: 
 
   revalidatePath('/admin')
   return success('Manager password reset successfully')
+}
+
+export async function deleteWorkerAction(_prevState: ActionResult, formData: FormData): Promise<ActionResult> {
+  // ── 1. Authenticate caller ──────────────────────────────────────────────────
+  const supabaseAuth = await createClient()
+  const { data: { user } } = await supabaseAuth.auth.getUser()
+  if (!user) return failure('Unauthorized')
+
+  const workerId = formData.get('worker_id') as string
+  if (!workerId) return failure('Missing worker ID')
+
+  // Only admins may delete workers
+  const { data: callerRole } = await supabaseAuth
+    .from('app_users')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  if (callerRole?.role !== 'admin') return failure('Forbidden: Admins only')
+
+  // ── 2. Resolve worker + gather data needed for cleanup ─────────────────────
+  // Service client bypasses RLS so every step below is guaranteed to run.
+  const svc = createServiceClient()
+
+  const { data: worker, error: workerFetchError } = await svc
+    .from('workers')
+    .select('auth_id')
+    .eq('id', workerId)
+    .single()
+
+  if (workerFetchError || !worker) {
+    console.error('[deleteWorkerAction] Worker not found', workerFetchError?.message)
+    return failure('Worker not found')
+  }
+
+  const authId: string | null = worker.auth_id ?? null
+
+  // ── 3. Delete dependent rows in FK-safe order ──────────────────────────────
+  //
+  // ⚠️  DO NOT add worker_daily_hours here — it is a VIEW, not a table.
+  //     DELETEing from a view will throw a Postgres error.
+  //     The underlying attendance data is removed via attendance_logs below.
+  //
+  try {
+    // 3a. fine_appeals — child of worker_adjustments (must go first)
+    //     Fetch adjustment IDs, then delete matching appeals.
+    const { data: adjustments } = await svc
+      .from('worker_adjustments')
+      .select('id')
+      .eq('worker_id', workerId)
+
+    if (adjustments && adjustments.length > 0) {
+      const adjIds = adjustments.map((a: { id: string }) => a.id)
+      const { error: appealErr } = await svc
+        .from('fine_appeals')
+        .delete()
+        .in('adjustment_id', adjIds)
+      if (appealErr) {
+        console.error('[deleteWorkerAction] fine_appeals delete error', appealErr.message)
+        return failure(`Failed to delete fine appeals: ${appealErr.message}`)
+      }
+    }
+
+    // 3b. worker_adjustments
+    const { error: adjErr } = await svc
+      .from('worker_adjustments')
+      .delete()
+      .eq('worker_id', workerId)
+    if (adjErr) {
+      console.error('[deleteWorkerAction] worker_adjustments delete error', adjErr.message)
+      return failure(`Failed to delete worker adjustments: ${adjErr.message}`)
+    }
+
+    // 3c. Supabase Storage — purge the worker's file folder (worker-docs/{worker_id}/...)
+    //     Must happen BEFORE deleting worker_documents rows so we still have the paths.
+    const { data: docFiles } = await svc
+      .from('worker_documents')
+      .select('storage_path')
+      .eq('worker_id', workerId)
+
+    if (docFiles && docFiles.length > 0) {
+      const paths = docFiles.map((d: { storage_path: string }) => d.storage_path)
+      const { error: storageErr } = await svc.storage.from('worker-docs').remove(paths)
+      if (storageErr) {
+        // Non-fatal: log and continue — DB rows will still be cleaned up.
+        // Files can be manually purged from the Storage bucket if needed.
+        console.error('[deleteWorkerAction] storage cleanup error', storageErr.message)
+      }
+    }
+
+    // 3d. worker_documents (DB rows)
+    const { error: docsErr } = await svc
+      .from('worker_documents')
+      .delete()
+      .eq('worker_id', workerId)
+    if (docsErr) {
+      console.error('[deleteWorkerAction] worker_documents delete error', docsErr.message)
+      return failure(`Failed to delete worker documents: ${docsErr.message}`)
+    }
+
+    // 3e. attendance_logs
+    const { error: attErr } = await svc
+      .from('attendance_logs')
+      .delete()
+      .eq('worker_id', workerId)
+    if (attErr) {
+      console.error('[deleteWorkerAction] attendance_logs delete error', attErr.message)
+      return failure(`Failed to delete attendance logs: ${attErr.message}`)
+    }
+
+    // 3f. face_profiles
+    const { error: faceErr } = await svc
+      .from('face_profiles')
+      .delete()
+      .eq('worker_id', workerId)
+    if (faceErr) {
+      console.error('[deleteWorkerAction] face_profiles delete error', faceErr.message)
+      return failure(`Failed to delete face profiles: ${faceErr.message}`)
+    }
+
+    // 3g. payroll_records
+    const { error: payrollErr } = await svc
+      .from('payroll_records')
+      .delete()
+      .eq('worker_id', workerId)
+    if (payrollErr) {
+      console.error('[deleteWorkerAction] payroll_records delete error', payrollErr.message)
+      return failure(`Failed to delete payroll records: ${payrollErr.message}`)
+    }
+
+    // ── 4. Delete the worker row ─────────────────────────────────────────────
+    const { error: workerErr } = await svc
+      .from('workers')
+      .delete()
+      .eq('id', workerId)
+    if (workerErr) {
+      console.error('[deleteWorkerAction] workers delete error', workerErr.message)
+      return failure(`Failed to delete worker: ${workerErr.message}`)
+    }
+
+    // ── 5. Delete app_users row (SOFT FAIL) ──────────────────────────────────
+    if (authId) {
+      const { error: appUserErr } = await svc
+        .from('app_users')
+        .delete()
+        .eq('auth_id', authId)
+      if (appUserErr) {
+        // Non-fatal: the worker row is already gone. Log for manual cleanup.
+        console.error('[deleteWorkerAction] app_users delete error', appUserErr.message)
+      }
+
+      // ── 6. Delete Supabase auth user (SOFT FAIL, requires service role) ────
+      const { error: authDelErr } = await svc.auth.admin.deleteUser(authId)
+      if (authDelErr) {
+        // Non-fatal: all data is purged. Auth orphan can be cleared in the Dashboard.
+        console.error('[deleteWorkerAction] auth.deleteUser error', authDelErr.message)
+      }
+    }
+
+    revalidatePath('/manager')
+    revalidatePath('/admin')
+    return success('Worker removed successfully')
+  } catch (err: any) {
+    console.error('[deleteWorkerAction] Unexpected exception', err)
+    return failure(err?.message || 'Failed to remove worker')
+  }
+}
+
+export async function softDeleteWorkerAction(_prevState: ActionResult, formData: FormData): Promise<ActionResult> {
+  // ── 1. Authenticate caller ──────────────────────────────────────────────────
+  const supabaseAuth = await createClient()
+  const { data: { user } } = await supabaseAuth.auth.getUser()
+  if (!user) return failure('Unauthorized')
+
+  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single()
+  if (roleData?.role !== 'admin') return failure('Forbidden: Admins only')
+
+  // ── 2. Get Input ────────────────────────────────────────────────────────────
+  const workerId = formData.get('worker_id') as string | null
+  if (!workerId) return failure('Missing worker ID')
+
+  // ── 3. Call RPC using the authenticated client to preserve auth.uid() ──────────
+  const { data, error } = await supabaseAuth.rpc('soft_delete_worker', {
+    p_worker_id: workerId,
+  })
+
+  if (error) {
+    console.error('[softDeleteWorkerAction] RPC error:', error)
+    return failure('Failed to remove worker: ' + error.message)
+  }
+
+  // The RPC returns { success: boolean, message: string }
+  if (data && data.success === false) {
+    return failure(data.message || 'Failed to remove worker')
+  }
+
+  revalidatePath('/admin')
+  return success('Worker removed successfully')
 }

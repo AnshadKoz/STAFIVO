@@ -37,6 +37,8 @@ import {
   updateWorkerAction,
   resetWorkerPasswordAction,
   resetManagerPasswordAction,
+  deleteWorkerAction,
+  softDeleteWorkerAction,
   type ActionResult,
 } from '@/app/admin/adminActions'
 
@@ -401,6 +403,9 @@ export default function ManagerDashboardClient({
     base_salary_per_hour: '',
     ot_rate_per_hour: '',
   })
+  // Inline password-reset state (lives inside the Edit Worker modal)
+  const [pwForm, setPwForm] = useState({ newPw: '', confirmPw: '', show: false })
+  const [pwResetting, setPwResetting] = useState(false)
   const [resettingPasswordFor, setResettingPasswordFor] = useState<{ type: 'worker' | 'manager'; id: string; appUserId: string } | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -417,21 +422,13 @@ export default function ManagerDashboardClient({
 
   const [requestState, workerRequestAction] = useActionState(createWorkerRequestAction, actionStateInit)
   const [outletState, outletAction] = useActionState(saveOutletAction, adminActionInit)
-  const [deleteOutletState, deleteOutletFormAction] = useActionState(deleteOutletAction, adminActionInit)
+  const [deleteOutletPending, setDeleteOutletPending] = useState(false)
+  const [deleteWorkerPending, setDeleteWorkerPending] = useState(false)
   const [createManagerState, managerCreateAction, createManagerPending] = useActionState(createManagerAction, adminActionInit)
   const [updateManagerState, managerUpdateAction] = useActionState(updateManagerAction, adminActionInit)
-  /* Auto-dismiss outlet delete message */
-  const [deleteOutletMessage, setDeleteOutletMessage] = useState<string>('')
 
-  useEffect(() => {
-    if (deleteOutletState.message) {
-      setDeleteOutletMessage(deleteOutletState.message)
-      const timer = setTimeout(() => setDeleteOutletMessage(''), 3000)
-      return () => clearTimeout(timer)
-    }
-  }, [deleteOutletState.message])
-
-
+  // Worker Delete Confirmation State
+  const [workerDeleteConfirm, setWorkerDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
 
   // Auto-dismiss messages
   const [createMessageVisible, setCreateMessageVisible] = useState(false)
@@ -439,7 +436,6 @@ export default function ManagerDashboardClient({
 
   // Password visibility
   const [showManagerPassword, setShowManagerPassword] = useState(false)
-
 
   useEffect(() => {
     if (createManagerState.message) {
@@ -637,6 +633,7 @@ export default function ManagerDashboardClient({
     const { data: w } = await supabase
       .from('workers')
       .select('id,name,phone,email,outlet_id,base_salary_per_hour,ot_rate_per_hour')
+      .eq('is_deleted', false)
       .order('name')
     setWorkers(w || [])
 
@@ -710,10 +707,19 @@ export default function ManagerDashboardClient({
     if (form.password) formData.append('password', form.password)
 
     showToast({ type: 'info', title: 'Processing', description: 'Creating worker, please wait...' })
-    const result = await createWorkerAction(adminActionInit, formData)
+    let result
+    try {
+      result = await createWorkerAction(adminActionInit, formData)
+    } catch (err: any) {
+      console.error('[addWorker] Server action threw', err)
+      setWorkerMessage(err?.message || 'Unexpected server error')
+      showToast({ type: 'error', title: 'Error', description: err?.message || 'Unexpected server error' })
+      return
+    }
 
     if (result.status === 'error') {
       setWorkerMessage(result.message || 'Failed to create worker')
+      showToast({ type: 'error', title: 'Create failed', description: result.message || 'Failed to create worker' })
       return
     }
 
@@ -1360,12 +1366,11 @@ export default function ManagerDashboardClient({
                             <button
                               type="button"
                               onClick={() => {
-                                setResettingPasswordFor({ type: 'worker', id: worker.id, appUserId: '' })
-                                setNewPassword('')
+                                setWorkerDeleteConfirm({ id: worker.id, name: worker.name })
                               }}
-                              className="text-xs text-orange-600 hover:text-orange-700 font-medium"
+                              className="text-xs text-red-600 hover:text-red-700 font-medium"
                             >
-                              Reset Password
+                              Remove
                             </button>
                           </div>
                         </td>
@@ -1970,9 +1975,7 @@ export default function ManagerDashboardClient({
                   </div>
                 </div>
               ))}
-              {deleteOutletMessage ? (
-                <p className="text-sm text-gray-600">{deleteOutletMessage}</p>
-              ) : null}
+
             </div>
           </div>
         ),
@@ -3029,61 +3032,150 @@ export default function ManagerDashboardClient({
       {/* Edit Worker modal */}
       <Modal
         open={editingWorker !== null}
-        onClose={() => { setEditingWorker(null); setWorkerEditForm({ name: '', outlet_id: '', base_salary_per_hour: '', ot_rate_per_hour: '' }) }}
+        onClose={() => {
+          setEditingWorker(null)
+          setWorkerEditForm({ name: '', outlet_id: '', base_salary_per_hour: '', ot_rate_per_hour: '' })
+          setPwForm({ newPw: '', confirmPw: '', show: false })
+        }}
         title="Edit Worker"
         description="Update worker details"
         wide={false}
       >
         {editingWorker && (
-          <form action={updateWorkerFormAction} className="space-y-4">
-            <input type="hidden" name="worker_id" value={editingWorker.id} />
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
-              <input
-                type="text" name="name" value={workerEditForm.name}
-                onChange={e => setWorkerEditForm({ ...workerEditForm, name: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Outlet</label>
-              <select
-                name="outlet_id" value={workerEditForm.outlet_id}
-                onChange={e => setWorkerEditForm({ ...workerEditForm, outlet_id: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          <div className="space-y-6">
+            {/* ── Worker detail fields ── */}
+            <form action={updateWorkerFormAction} className="space-y-4">
+              <input type="hidden" name="worker_id" value={editingWorker.id} />
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Name</label>
+                <input
+                  type="text" name="name" value={workerEditForm.name}
+                  onChange={e => setWorkerEditForm({ ...workerEditForm, name: e.target.value })}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Outlet</label>
+                <select
+                  name="outlet_id" value={workerEditForm.outlet_id}
+                  onChange={e => setWorkerEditForm({ ...workerEditForm, outlet_id: e.target.value })}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                >
+                  <option value="">Select outlet</option>
+                  {outlets.map(outlet => <option key={outlet.id} value={outlet.id}>{outlet.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Base Rate (₹/hr)</label>
+                <input
+                  type="number" step="0.01" name="base_salary_per_hour" value={workerEditForm.base_salary_per_hour}
+                  onChange={e => setWorkerEditForm({ ...workerEditForm, base_salary_per_hour: e.target.value })}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">OT Rate (₹/hr)</label>
+                <input
+                  type="number" step="0.01" name="ot_rate_per_hour" value={workerEditForm.ot_rate_per_hour}
+                  onChange={e => setWorkerEditForm({ ...workerEditForm, ot_rate_per_hour: e.target.value })}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button type="submit" className="flex-1 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700">Save Changes</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditingWorker(null)
+                    setWorkerEditForm({ name: '', outlet_id: '', base_salary_per_hour: '', ot_rate_per_hour: '' })
+                    setPwForm({ newPw: '', confirmPw: '', show: false })
+                  }}
+                  className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                >Cancel</button>
+              </div>
+              {updateWorkerState.status === 'success' && updateWorkerState.message && <p className="text-sm text-green-600">{updateWorkerState.message}</p>}
+              {updateWorkerState.status === 'error' && updateWorkerState.message && <p className="text-sm text-red-600">{updateWorkerState.message}</p>}
+            </form>
+
+            {/* ── Reset Password section ── */}
+            <div className="border-t border-gray-100 pt-5">
+              <p className="mb-3 text-sm font-semibold text-gray-700">Reset Password</p>
+              <p className="mb-4 text-xs text-gray-400">Leave empty if you don&apos;t want to change the password.</p>
+              <form
+                className="space-y-3"
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  // ── Client-side validation ──────────────────────────────
+                  if (!pwForm.newPw && !pwForm.confirmPw) return        // silently skip if both empty
+                  if (pwForm.newPw.length < 6) {
+                    showToast({ type: 'error', title: 'Password too short', description: 'Minimum 6 characters required.' })
+                    return
+                  }
+                  if (pwForm.newPw !== pwForm.confirmPw) {
+                    showToast({ type: 'error', title: 'Passwords do not match', description: 'New password and confirmation must be identical.' })
+                    return
+                  }
+                  // ── Call server action ──────────────────────────────────
+                  setPwResetting(true)
+                  const fd = new FormData()
+                  fd.append('worker_id', editingWorker.id)
+                  fd.append('new_password', pwForm.newPw)
+                  const result = await resetWorkerPasswordAction({ status: 'idle' }, fd)
+                  setPwResetting(false)
+                  if (result.status === 'success') {
+                    showToast({ type: 'success', title: 'Password updated', description: 'Password updated successfully.' })
+                    setPwForm({ newPw: '', confirmPw: '', show: false })  // clear fields
+                  } else {
+                    showToast({ type: 'error', title: 'Reset failed', description: result.message ?? 'Failed to reset password.' })
+                  }
+                }}
               >
-                <option value="">Select outlet</option>
-                {outlets.map(outlet => <option key={outlet.id} value={outlet.id}>{outlet.name}</option>)}
-              </select>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">New Password</label>
+                  <div className="relative">
+                    <input
+                      type={pwForm.show ? 'text' : 'password'}
+                      value={pwForm.newPw}
+                      onChange={e => setPwForm({ ...pwForm, newPw: e.target.value })}
+                      placeholder="Min. 6 characters"
+                      className="w-full rounded-xl border border-gray-200 px-4 py-2.5 pr-16 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPwForm({ ...pwForm, show: !pwForm.show })}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
+                    >
+                      {pwForm.show ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Confirm Password</label>
+                  <input
+                    type={pwForm.show ? 'text' : 'password'}
+                    value={pwForm.confirmPw}
+                    onChange={e => setPwForm({ ...pwForm, confirmPw: e.target.value })}
+                    placeholder="Repeat new password"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+                  />
+                  {pwForm.confirmPw && pwForm.newPw !== pwForm.confirmPw && (
+                    <p className="mt-1 text-xs text-red-500">Passwords do not match</p>
+                  )}
+                  {pwForm.confirmPw && pwForm.newPw === pwForm.confirmPw && pwForm.newPw.length >= 6 && (
+                    <p className="mt-1 text-xs text-green-600">✓ Passwords match</p>
+                  )}
+                </div>
+                <button
+                  type="submit"
+                  disabled={pwResetting}
+                  className="w-full rounded-xl bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {pwResetting ? 'Updating…' : 'Reset Password'}
+                </button>
+              </form>
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Base Rate (₹/hr)</label>
-              <input
-                type="number" step="0.01" name="base_salary_per_hour" value={workerEditForm.base_salary_per_hour}
-                onChange={e => setWorkerEditForm({ ...workerEditForm, base_salary_per_hour: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">OT Rate (₹/hr)</label>
-              <input
-                type="number" step="0.01" name="ot_rate_per_hour" value={workerEditForm.ot_rate_per_hour}
-                onChange={e => setWorkerEditForm({ ...workerEditForm, ot_rate_per_hour: e.target.value })}
-                className="w-full rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex gap-3">
-              <button type="submit" className="flex-1 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700">Save Changes</button>
-              <button
-                type="button"
-                onClick={() => { setEditingWorker(null); setWorkerEditForm({ name: '', outlet_id: '', base_salary_per_hour: '', ot_rate_per_hour: '' }) }}
-                className="flex-1 rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-              >Cancel</button>
-            </div>
-            {updateWorkerState.status === 'success' && updateWorkerState.message && <p className="text-sm text-green-600">{updateWorkerState.message}</p>}
-            {updateWorkerState.status === 'error' && updateWorkerState.message && <p className="text-sm text-red-600">{updateWorkerState.message}</p>}
-          </form>
+          </div>
         )}
       </Modal>
 
@@ -3218,14 +3310,73 @@ export default function ManagerDashboardClient({
               >
                 Cancel
               </button>
-              <form action={async (formData) => { await deleteOutletFormAction(formData); setOutletDeleteConfirm(null); setDeleteConfirmText('') }}>
+              <form
+                action={async (formData) => {
+                  setDeleteOutletPending(true)
+                  const result = await deleteOutletAction(adminActionInit, formData)
+                  setDeleteOutletPending(false)
+                  if (result.status === 'success') {
+                    showToast({ type: 'success', title: 'Success', description: 'Outlet deleted successfully' })
+                    setOutletDeleteConfirm(null)
+                    setDeleteConfirmText('')
+                    loadData()
+                    router.refresh()
+                  } else {
+                    showToast({ type: 'error', title: 'Error', description: result.message || 'Failed to delete outlet' })
+                  }
+                }}
+              >
                 <input type="hidden" name="outlet_id" value={outletDeleteConfirm.id} />
                 <button
                   type="submit"
-                  disabled={deleteConfirmText !== outletDeleteConfirm.name}
+                  disabled={deleteConfirmText !== outletDeleteConfirm.name || deleteOutletPending}
                   className="rounded-xl bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
                 >
-                  Delete
+                  {deleteOutletPending ? 'Deleting...' : 'Delete'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Worker delete confirmation ── */}
+      {workerDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900">Remove worker?</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              This will remove the worker from the active workforce. Their records will be kept safely in the system.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setWorkerDeleteConfirm(null)}
+                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                disabled={deleteWorkerPending}
+              >
+                Cancel
+              </button>
+              <form action={async (formData) => {
+                setDeleteWorkerPending(true)
+                const result = await softDeleteWorkerAction(adminActionInit, formData)
+                setDeleteWorkerPending(false)
+                if (result.status === 'success') {
+                  showToast({ type: 'success', title: 'Success', description: 'Worker removed successfully' })
+                  setWorkerDeleteConfirm(null)
+                  loadData()
+                  router.refresh()
+                } else {
+                  showToast({ type: 'error', title: 'Error', description: result.message || 'Failed to remove worker' })
+                }
+              }}>
+                <input type="hidden" name="worker_id" value={workerDeleteConfirm.id} />
+                <button
+                  type="submit"
+                  disabled={deleteWorkerPending}
+                  className="rounded-xl bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
+                >
+                  {deleteWorkerPending ? 'Removing...' : 'Remove'}
                 </button>
               </form>
             </div>
