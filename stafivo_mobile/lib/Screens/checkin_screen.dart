@@ -589,6 +589,32 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     setState(() => _status = msg);
   }
 
+  // --- ADDED: Logout handler ---
+  Future<void> _handleLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('You will be returned to the login screen.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await Supabase.instance.client.auth.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+  }
+  // --- END ADDED ---
+
   // --- ADDED: Worker info card replaces outlet+worker dropdowns ---
   Widget _buildWorkerInfoCard(ColorScheme scheme) {
     return Container(
@@ -946,7 +972,18 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     final previewHeight = size.height * 0.38;
 
     return Scaffold(
-      appBar: workForgeAppBar(context, 'Check-in / Check-out', implyLeading: false),
+      appBar: workForgeAppBar(
+        context,
+        'Check-in / Check-out',
+        implyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Log out',
+            onPressed: _handleLogout,
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
