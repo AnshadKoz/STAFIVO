@@ -909,34 +909,3 @@ export async function deleteWorkerAction(_prevState: ActionResult, formData: For
   }
 }
 
-export async function softDeleteWorkerAction(_prevState: ActionResult, formData: FormData): Promise<ActionResult> {
-  // ── 1. Authenticate caller ──────────────────────────────────────────────────
-  const supabaseAuth = await createClient()
-  const { data: { user } } = await supabaseAuth.auth.getUser()
-  if (!user) return failure('Unauthorized')
-
-  const { data: roleData } = await supabaseAuth.from('app_users').select('role').eq('id', user.id).single()
-  if (roleData?.role !== 'admin') return failure('Forbidden: Admins only')
-
-  // ── 2. Get Input ────────────────────────────────────────────────────────────
-  const workerId = formData.get('worker_id') as string | null
-  if (!workerId) return failure('Missing worker ID')
-
-  // ── 3. Call RPC using the authenticated client to preserve auth.uid() ──────────
-  const { data, error } = await supabaseAuth.rpc('soft_delete_worker', {
-    p_worker_id: workerId,
-  })
-
-  if (error) {
-    console.error('[softDeleteWorkerAction] RPC error:', error)
-    return failure('Failed to remove worker: ' + error.message)
-  }
-
-  // The RPC returns { success: boolean, message: string }
-  if (data && data.success === false) {
-    return failure(data.message || 'Failed to remove worker')
-  }
-
-  revalidatePath('/admin')
-  return success('Worker removed successfully')
-}
