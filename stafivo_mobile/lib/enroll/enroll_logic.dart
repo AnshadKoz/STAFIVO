@@ -85,7 +85,7 @@ class EnrollController {
 
   /// Persists the profile after `enrollWorker` generates an embedding.
   /// Uses RPC function to enforce duplicate face detection at database level.
-  /// 
+  ///
   /// IMPORTANT: This uses RPC instead of direct insert to enforce duplicate face prevention.
   /// DO NOT use supabase.from('face_profiles').insert() - it will fail after SQL migration.
   Future<void> saveProfile(
@@ -93,6 +93,26 @@ class EnrollController {
     EnrollResult result, {
     String? imageUrl,
   }) async {
+    // Pre-call guard: faceHash must be non-empty — face_profiles.face_hash is NOT NULL.
+    if (result.faceHash.isEmpty) {
+      throw StateError(
+        'faceHash is empty — cannot insert into face_profiles. '
+        'This means _embeddingHash() produced an empty string. '
+        'Embedding length: ${result.embedding.length}',
+      );
+    }
+
+    // Debug: confirm exact values being sent to the RPC.
+    assert(() {
+      // ignore: avoid_print
+      print('[EnrollController.saveProfile] '
+          'worker_id=$workerId '
+          'embedding.length=${result.embedding.length} '
+          'faceHash=${result.faceHash} '
+          'model=${_embedder.modelName}');
+      return true;
+    }());
+
     // Use RPC function for safe enrollment with duplicate detection
     final params = <String, dynamic>{
       'p_worker_id': workerId,
@@ -101,12 +121,12 @@ class EnrollController {
       'p_embed_model': _embedder.modelName,
       'p_version': 3,
     };
-    
+
     // Only include image_url if provided (SQL function has DEFAULT NULL)
     if (imageUrl != null) {
       params['p_image_url'] = imageUrl;
     }
-    
+
     await _client.rpc('enroll_face_profile', params: params);
   }
 

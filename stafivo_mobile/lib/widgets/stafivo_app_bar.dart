@@ -8,6 +8,7 @@ PreferredSizeWidget stafivoAppBar(
   BuildContext context,
   String title, {
   bool implyLeading = true,
+  Widget? leading,
   List<Widget>? actions,
 }) {
   final scheme = Theme.of(context).colorScheme;
@@ -19,6 +20,7 @@ PreferredSizeWidget stafivoAppBar(
 
   return AppBar(
     automaticallyImplyLeading: implyLeading,
+    leading: leading,
     backgroundColor: Colors.white,
     surfaceTintColor: Colors.white,
     elevation: 0,

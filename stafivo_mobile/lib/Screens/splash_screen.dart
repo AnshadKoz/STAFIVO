@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/supabase_repo.dart';
 import '../theme/stafivo_colors.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -45,14 +46,30 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  void _bootstrap() {
+  // Called once the splash delay has elapsed.
+  Future<void> _bootstrap() async {
     if (!mounted) return;
     final session = Supabase.instance.client.auth.currentSession;
-    if (session != null) {
-      // User is already logged in — continue to the existing welcome/check flow
-      Navigator.of(context).pushReplacementNamed('/welcome');
-    } else {
-      // No session — show login screen
+    if (session == null) {
+      // No active session — send to login.
+      Navigator.of(context).pushReplacementNamed('/login');
+      return;
+    }
+
+    // Session exists: check enrollment status BEFORE routing.
+    // This mirrors the post-login check in LoginScreen._routePostLogin() and
+    // prevents a returning user from landing on EnrollScreen when already enrolled.
+    try {
+      final enrolled = await SupabaseRepo.isCurrentWorkerEnrolled();
+      if (!mounted) return;
+      if (enrolled) {
+        Navigator.of(context).pushReplacementNamed('/check');
+      } else {
+        Navigator.of(context).pushReplacementNamed('/enroll');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      // On any unexpected error fall back to login so the user can retry.
       Navigator.of(context).pushReplacementNamed('/login');
     }
   }

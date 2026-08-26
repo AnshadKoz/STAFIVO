@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../enroll/enroll_logic.dart';
-import '../services/supabase_repo.dart';
 import '../widgets/face_frame_overlay.dart';
 import '../widgets/stafivo_app_bar.dart';
 import '../widgets/alert_dialog_helper.dart';
@@ -24,23 +23,16 @@ class _EnrollScreenState extends State<EnrollScreen> {
 
   bool _ready = false;
   bool _saving = false;
-  String? _selectedWorkerId;
-  String? _savedUrl;
-  double? _enrollSuccessRatio;
+  String? _workerId;          // resolved from logged-in auth user
+  String? _bootstrapError;    // shown if auth/worker lookup fails
   String? _pipelineError;
-  bool _allowReturnToCheck = false;
   bool _cameraInitializing = false;
   String? _cameraError;
-
-  List<Map<String, dynamic>> _workers = [];
-
-  bool get _isSelfEnrollment => widget.workerId != null;
 
   @override
   void initState() {
     super.initState();
     _enrollController = EnrollController();
-    _selectedWorkerId = widget.workerId;
     _initAll();
   }
 
@@ -48,12 +40,73 @@ class _EnrollScreenState extends State<EnrollScreen> {
     setState(() {
       _ready = false;
       _cameraError = null;
+      _bootstrapError = null;
     });
+    await _resolveWorker();
     await _initEmbedder();
-    await _loadWorkers();
     await _initializeCamera();
     if (!mounted) return;
     setState(() => _ready = true);
+  }
+
+  /// Resolves the logged-in auth user → workers.id → _workerId.
+  ///
+  /// face_profiles.worker_id is a FK to workers.id (NOT app_users.id).
+  /// The workers table has its own auth_id column, so we can query it directly.
+  ///
+  /// Correct path: auth.currentUser.id → workers WHERE auth_id = auth_id → workers.id
+  ///
+  /// Uses .single() so Supabase throws a PostgrestException if the result is
+  /// not exactly one row — this catches both missing workers (PGRST116) and
+  /// data inconsistencies where multiple workers share the same auth_id.
+  Future<void> _resolveWorker() async {
+    try {
+      final authUser = Supabase.instance.client.auth.currentUser;
+      if (authUser == null) {
+        if (mounted) setState(() => _bootstrapError = 'Not logged in. Please sign in again.');
+        return;
+      }
+
+      // .single() enforces exactly one row — throws PostgrestException otherwise.
+      // This prevents silently using the wrong worker when data is inconsistent.
+      final workerRow = await Supabase.instance.client
+          .from('workers')
+          .select('id')
+          .eq('auth_id', authUser.id)
+          .single();
+
+      final workerId = workerRow['id']?.toString();
+      if (workerId == null || workerId.isEmpty) {
+        if (mounted) {
+          setState(() => _bootstrapError = 'Worker record is incomplete. Contact support.');
+        }
+        return;
+      }
+
+      developer.log('Resolved worker_id: $workerId', name: 'EnrollScreen');
+      if (mounted) setState(() => _workerId = workerId);
+    } on PostgrestException catch (e) {
+      developer.log(
+        '_resolveWorker: PostgrestException code=${e.code} msg=${e.message}',
+        name: 'EnrollScreen',
+      );
+      if (e.code == 'PGRST116') {
+        // "JSON object requested, multiple (or no) rows returned"
+        // Covers: worker not found OR duplicate auth_id in workers table.
+        if (mounted) {
+          setState(() => _bootstrapError = 'Worker not found. Please contact admin.');
+        }
+      } else {
+        // Unexpected DB error (RLS denial, schema issue, etc.) — surface the message
+        // so it is debuggable without hiding it under the same user-facing label.
+        if (mounted) {
+          setState(() => _bootstrapError = 'Database error: ${e.message}');
+        }
+      }
+    } catch (e) {
+      developer.log('_resolveWorker unexpected error: $e', name: 'EnrollScreen');
+      if (mounted) setState(() => _bootstrapError = 'Could not load worker profile: $e');
+    }
   }
 
   Future<void> _initEmbedder() async {
@@ -152,35 +205,12 @@ class _EnrollScreenState extends State<EnrollScreen> {
     }
   }
 
-  Future<void> _loadWorkers() async {
-    if (_isSelfEnrollment) return;
-    try {
-      var list = await SupabaseRepo.workersNeedingEnrollment();
-      if (list.isEmpty) {
-        list = await SupabaseRepo.workersNeedingEnrollmentFallback();
-      }
-      if (!mounted) return;
-      setState(() {
-        _workers = list;
-        _selectedWorkerId = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _workers = [];
-        _selectedWorkerId = null;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load workers: $e')),
-      );
-    }
-  }
 
   Future<void> _captureAndUpload() async {
     final camera = _camera;
     if (camera == null || !camera.value.isInitialized) return;
-    if (_selectedWorkerId == null) {
-      _toast('Select a worker first');
+    if (_workerId == null) {
+      _toast('Worker profile not loaded. Please restart.');
       return;
     }
     if (_pipelineError != null) {
@@ -188,10 +218,7 @@ class _EnrollScreenState extends State<EnrollScreen> {
       return;
     }
 
-    setState(() {
-      _saving = true;
-      _enrollSuccessRatio = null;
-    });
+    setState(() => _saving = true);
 
     try {
       const captureCount = 3;
@@ -206,15 +233,25 @@ class _EnrollScreenState extends State<EnrollScreen> {
         }
       }
 
-      final result = await _enrollController.enrollWorker(_selectedWorkerId!, frames);
+      final result = await _enrollController.enrollWorker(_workerId!, frames);
       if (result == null) {
         _toast('Need at least two clean frames. Try again.');
         return;
       }
 
+      // Debug: log embedding and faceHash before upload/save so values are
+      // visible in the console if the DB raises a constraint error.
+      developer.log(
+        'enrollWorker result — '
+        'embedding.length=${result.embedding.length} '
+        'faceHash="${result.faceHash}" '
+        'successfulFrames=${result.successfulFrames}',
+        name: 'EnrollScreen',
+      );
+
       final bestIndex = result.bestFrameIndex ?? 0;
       final bestBytes = frames[bestIndex].bytes;
-      final storagePath = 'workers/${_selectedWorkerId!}/enroll-best.jpg';
+      final storagePath = 'workers/$_workerId/enroll-best.jpg';
 
       await Supabase.instance.client.storage.from('faces').uploadBinary(
         storagePath,
@@ -222,39 +259,32 @@ class _EnrollScreenState extends State<EnrollScreen> {
         fileOptions: const FileOptions(upsert: true, contentType: 'image/jpeg'),
       );
 
-      final publicUrl = Supabase.instance.client.storage.from('faces').getPublicUrl(storagePath);
+      // Pre-save validation: confirm workers.id exists before inserting face_profiles.
+      // Guards against FK violation (code 23503) if _workerId was resolved incorrectly.
+      final workerCheck = await Supabase.instance.client
+          .from('workers')
+          .select('id')
+          .eq('id', _workerId!)
+          .limit(1);
+      if (workerCheck.isEmpty) {
+        developer.log(
+          'Pre-save validation failed: worker_id=$_workerId not in workers table',
+          name: 'EnrollScreen',
+        );
+        _toast('Worker not found. Please contact admin.');
+        return;
+      }
 
       await _enrollController.saveProfile(
-        _selectedWorkerId!,
+        _workerId!,
         result,
         imageUrl: '/faces/$storagePath',
       );
 
-      final ratio = result.successfulFrames / captureCount;
-      if (!mounted) return;
-      setState(() {
-        _savedUrl = _isSelfEnrollment ? null : publicUrl;
-        _enrollSuccessRatio = ratio;
-      });
-
       await _showSuccessDialog();
       if (!mounted) return;
-      if (_isSelfEnrollment) {
-        setState(() => _allowReturnToCheck = true);
-      } else {
-        await _loadWorkers();
-        if (!mounted) return;
-        if (_workers.isEmpty) {
-          await _replaceWithCheckScreen();
-        } else {
-          setState(() {
-            _selectedWorkerId = null;
-            _savedUrl = null;
-            _enrollSuccessRatio = null;
-          });
-          _toast('Select the next worker to continue enrollment.');
-        }
-      }
+      // Enrollment complete — go directly to the check-in screen.
+      await _replaceWithCheckScreen();
     } on PostgrestException catch (e, stack) {
       // Check for duplicate face error (error code 23514)
       final isDuplicateFace = e.code == '23514' || 
@@ -375,10 +405,13 @@ class _EnrollScreenState extends State<EnrollScreen> {
     super.dispose();
   }
 
-  Future<void> _returnToCheck({bool completed = false}) async {
+  Future<void> _returnToCheck() async {
     await _disposeCameraController();
     if (!mounted) return;
-    Navigator.of(context).pop(completed ? 'enrollment_completed' : null);
+    // Login used pushReplacementNamed('/enroll'), so there is no previous
+    // route to pop back to — doing so produces a black screen.
+    // Instead, always replace with the login screen to reset the stack.
+    Navigator.of(context).pushReplacementNamed('/login');
   }
 
   Future<void> _replaceWithCheckScreen() async {
@@ -504,14 +537,25 @@ class _EnrollScreenState extends State<EnrollScreen> {
     final scheme = Theme.of(context).colorScheme;
     final previewHeight = MediaQuery.of(context).size.height * 0.38;
     return PopScope(
-      canPop: true,
+      // Prevent the system/gesture back from raw-popping to a blank navigator.
+      // We handle back ourselves via _returnToCheck() which disposes the camera
+      // and replaces the route with the login screen.
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
-        if (didPop) {
-          await _disposeCameraController(updateState: false);
+        if (!didPop) {
+          await _returnToCheck();
         }
       },
       child: Scaffold(
-        appBar: stafivoAppBar(context, 'Face Enrollment'),
+        appBar: stafivoAppBar(
+          context,
+          'Face Enrollment',
+          leading: IconButton(
+            tooltip: 'Back',
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            onPressed: () => _returnToCheck(),
+          ),
+        ),
         body: !_ready
             ? const Center(child: CircularProgressIndicator())
             : SafeArea(
@@ -520,6 +564,23 @@ class _EnrollScreenState extends State<EnrollScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // Bootstrap error (auth/worker lookup failure)
+                      if (_bootstrapError != null)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: scheme.error.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Text(
+                            _bootstrapError!,
+                            style: TextStyle(
+                              color: scheme.error,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       if (_pipelineError != null)
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -536,31 +597,6 @@ class _EnrollScreenState extends State<EnrollScreen> {
                             ),
                           ),
                         ),
-                      if (_isSelfEnrollment)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            'Registering face for your account.',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              color: scheme.primary,
-                            ),
-                          ),
-                        )
-                      else
-                        DropdownButtonFormField<String>(
-                          decoration: const InputDecoration(labelText: 'Select worker'),
-                          value: _selectedWorkerId,
-                          items: _workers
-                              .map(
-                                (w) => DropdownMenuItem<String>(
-                                  value: w['id'].toString(),
-                                  child: Text(w['name']?.toString() ?? 'Unnamed'),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) => setState(() => _selectedWorkerId = v),
-                        ),
                       const SizedBox(height: 16),
                       _buildCameraPreview(previewHeight),
                       const SizedBox(height: 24),
@@ -571,32 +607,11 @@ class _EnrollScreenState extends State<EnrollScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 18),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                           ),
-                          onPressed: (_saving || (!_isSelfEnrollment && _selectedWorkerId == null)) ? null : _captureAndUpload,
+                          onPressed: (_saving || _workerId == null) ? null : _captureAndUpload,
                           icon: const Icon(Icons.face_retouching_natural),
                           label: Text(_saving ? 'Saving...' : 'Capture & Save'),
                         ),
                       ),
-                      if (_savedUrl != null) ...[
-                        const SizedBox(height: 16),
-                        const Text('Saved preview:'),
-                        Text(_savedUrl!, style: TextStyle(color: scheme.primary)),
-                      ],
-                      if (_enrollSuccessRatio != null) ...[
-                        const SizedBox(height: 8),
-                        Text('Frames accepted: ${(_enrollSuccessRatio! * 100).toStringAsFixed(0)}%'),
-                      ],
-                      if (_allowReturnToCheck) ...[
-                        const SizedBox(height: 24),
-                        OutlinedButton.icon(
-                          onPressed: () => _returnToCheck(completed: true),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                          ),
-                          icon: const Icon(Icons.arrow_back),
-                          label: const Text('Back to Check-in screen'),
-                        ),
-                      ],
                     ],
                   ),
                 ),

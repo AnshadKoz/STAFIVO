@@ -56,21 +56,17 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _routePostLogin() async {
     setState(() => _checkingProfile = true);
     try {
-      List<Map<String, dynamic>> needing;
-      try {
-        needing = await SupabaseRepo.workersNeedingEnrollment();
-        if (needing.isEmpty) {
-          needing = await SupabaseRepo.workersNeedingEnrollmentFallback();
-        }
-      } catch (_) {
-        needing = await SupabaseRepo.workersNeedingEnrollmentFallback();
-      }
+      // Check whether THIS logged-in worker already has a face profile.
+      // The old global check (workersNeedingEnrollment) returned ALL unenrolled
+      // workers on the device — so if any OTHER worker was unenrolled the app
+      // kept redirecting the already-enrolled worker back to enrollment.
+      final enrolled = await SupabaseRepo.isCurrentWorkerEnrolled();
 
       if (!mounted) return;
-      if (needing.isNotEmpty) {
-        Navigator.pushReplacementNamed(context, '/enroll');
-      } else {
+      if (enrolled) {
         Navigator.pushReplacementNamed(context, '/check');
+      } else {
+        Navigator.pushReplacementNamed(context, '/enroll');
       }
     } catch (e) {
       if (!mounted) return;
@@ -133,7 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   FilledButton(
                     onPressed: busy ? null : _signIn,
                     child: Text(
-                      _loading ? 'Signing in...' : (_checkingProfile ? 'Checking workers...' : 'Sign in'),
+                      _loading ? 'Signing in...' : (_checkingProfile ? 'Checking profile...' : 'Sign in'),
                     ),
                   ),
                 ],

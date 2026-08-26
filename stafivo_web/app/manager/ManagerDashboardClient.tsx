@@ -38,7 +38,6 @@ import {
   resetWorkerPasswordAction,
   resetManagerPasswordAction,
   deleteWorkerAction,
-  softDeleteWorkerAction,
   type ActionResult,
 } from '@/app/admin/adminActions'
 
@@ -382,6 +381,7 @@ export default function ManagerDashboardClient({
       return () => clearTimeout(timer)
     }
   }, [workerMessage])
+
   const [outletForm, setOutletForm] = useState({
     outlet_id: '',
     name: '',
@@ -423,12 +423,12 @@ export default function ManagerDashboardClient({
   const [requestState, workerRequestAction] = useActionState(createWorkerRequestAction, actionStateInit)
   const [outletState, outletAction] = useActionState(saveOutletAction, adminActionInit)
   const [deleteOutletPending, setDeleteOutletPending] = useState(false)
-  const [deleteWorkerPending, setDeleteWorkerPending] = useState(false)
   const [createManagerState, managerCreateAction, createManagerPending] = useActionState(createManagerAction, adminActionInit)
   const [updateManagerState, managerUpdateAction] = useActionState(updateManagerAction, adminActionInit)
 
-  // Worker Delete Confirmation State
-  const [workerDeleteConfirm, setWorkerDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
+  // Worker Hard Delete Confirmation State (permanent: removes everything)
+  const [workerHardDeleteConfirm, setWorkerHardDeleteConfirm] = useState<{ id: string; name: string } | null>(null)
+  const [deleteWorkerHardPending, setDeleteWorkerHardPending] = useState(false)
 
   // Auto-dismiss messages
   const [createMessageVisible, setCreateMessageVisible] = useState(false)
@@ -452,6 +452,7 @@ export default function ManagerDashboardClient({
       return () => clearTimeout(timer)
     }
   }, [updateManagerState])
+
   const [appealActionState, respondToAppealAction, appealActionPending] = useActionState(
     respondToFineAppealAction,
     actionStateInit
@@ -627,16 +628,18 @@ export default function ManagerDashboardClient({
   }
 
   const loadData = async () => {
+    // Outlets have no per-outlet RLS restriction — safe to re-fetch from the browser client.
     const { data: o } = await supabase.from('outlets').select('id,name,latitude,longitude,radius_meters').order('name')
     setOutlets(o || [])
 
-    const { data: w } = await supabase
-      .from('workers')
-      .select('id,name,phone,email,outlet_id,base_salary_per_hour,ot_rate_per_hour')
-      .eq('is_deleted', false)
-      .order('name')
-    setWorkers(w || [])
-
+    // Workers are NOT re-fetched here via the browser client.
+    // Reason: the browser Supabase client runs with the logged-in user's JWT.
+    // A manager-role JWT triggers RLS policies that restrict workers to the manager's
+    // outlet, so a client-side fetch would return only that outlet's workers and
+    // overwrite the full list that the server component correctly hydrated.
+    // router.refresh() (called at every loadData() call site) re-runs the server
+    // component which uses an unrestricted session and re-hydrates workers correctly.
+    console.log('[loadData] outlets refreshed:', o?.length ?? 0, '| workers re-hydrated via router.refresh()')
   }
 
   const fetchLogs = async (dateFilter: string, outletFilter: string, createdByFilter: string, workerFilter: string) => {
@@ -746,26 +749,10 @@ export default function ManagerDashboardClient({
       .select('id,kind,hours,amount,note,effective_date,created_by, app_users!worker_adjustments_created_by_fkey(role, name)')
       .eq('worker_id', workerId)
 
-    // Remove the created_by restriction for admins (so they see all)
-    // For managers (non-admins), we might still want to restrict, BUT
-    // requirements say: "Manager should never see adjustments from other outlets."
-    // Since we are filtering by worker_id, and workers belong to an outlet, 
-    // and presumably RLS prevents accessing data from other outlets/workers,
-    // we should rely on RLS. If RLS allows managers to see any adjustment for their workers, we are good.
-    // The previous code had `.eq('created_by', userId)` which hid other managers' adjustments. 
-    // Requirement 1: Admin sees all. 
-    // Requirement 4: Manager sees only outlet adjustments (RLS handles outlet restriction usually).
-
-    // If we want to strictly follow "Admin sees all" and "Manager sees only outlet", 
-    // relying on RLS is best. If RLS is strict, we don't need `.eq('created_by', userId)`.
-    // If the user wants to see *other* managers' adjustments for the same worker (if any), then removing it is correct.
-    // Given the requirement "Show ALL adjustments (Admin)... Do NOT restrict by created_by", we remove it.
-
     if (adjustmentFilterDate) {
       query = query.eq('effective_date', adjustmentFilterDate)
     }
 
-    // Sort first
     query = query.order('created_at', { ascending: false })
       .limit(50)
 
@@ -783,13 +770,9 @@ export default function ManagerDashboardClient({
       creator_name: item.app_users?.name
     })) || []
 
-    // Filter by Created By (Application level might be safer if we can't easily join-filter)
-    // Or we can try to filter if we had the UUIDs. 
-    // Since we have the role now, we can filter in memory for 'admin' vs 'manager' filter.
     if (adjustmentFilterCreatedBy !== 'all') {
       fetchedAdjustments = fetchedAdjustments.filter((adj: any) => adj.creator_role === adjustmentFilterCreatedBy)
     }
-
 
     const { data: appeals } = await supabase
       .from('fine_appeals')
@@ -824,8 +807,6 @@ export default function ManagerDashboardClient({
   useEffect(() => {
     setWorkerTrendsWeekly(resolvedWorkerAnalyticsWeekly)
   }, [resolvedWorkerAnalyticsWeekly])
-
-
 
   const handleDeleteAdjustment = (id: string) => {
     setDeleteConfirmation({ id, open: true })
@@ -975,7 +956,6 @@ export default function ManagerDashboardClient({
             onChange={e => setAdjustmentForm({ ...adjustmentForm, worker_id: e.target.value })}
             className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-
             <option value="">Select worker</option>
             {(adjustmentOutletFilter
               ? workers.filter(w => w.outlet_id === adjustmentOutletFilter)
@@ -1007,12 +987,12 @@ export default function ManagerDashboardClient({
               className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           ) : (
-              <input
+            <input
               type="number"
               step="0.01"
               value={adjustmentForm.amount}
               onChange={e => setAdjustmentForm({ ...adjustmentForm, amount: e.target.value })}
-                placeholder="Amount (₹)"
+              placeholder="Amount (₹)"
               className="rounded-xl border border-gray-200 px-4 py-2.5 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
           )}
@@ -1037,10 +1017,7 @@ export default function ManagerDashboardClient({
           {savingAdjustment ? 'Saving...' : 'Save adjustment'}
         </button>
         {adjustmentMessage ? (
-          <p
-            className={`text-sm ${adjustmentMessage.type === 'success' ? 'text-blue-600' : 'text-red-600'
-              }`}
-          >
+          <p className={`text-sm ${adjustmentMessage.type === 'success' ? 'text-blue-600' : 'text-red-600'}`}>
             {adjustmentMessage.text}
           </p>
         ) : null}
@@ -1094,7 +1071,6 @@ export default function ManagerDashboardClient({
                       <span className="text-gray-900 font-medium">
                         {adj.kind === 'ot' ? `${adj.hours} hrs` : `₹${adj.amount}`}
                       </span>
-                      {/* Creator Badge */}
                       {adj.creator_role && (
                         <span className={`ml-2 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium border ${adj.creator_role === 'admin'
                           ? 'bg-purple-50 text-purple-700 border-purple-100'
@@ -1366,7 +1342,7 @@ export default function ManagerDashboardClient({
                             <button
                               type="button"
                               onClick={() => {
-                                setWorkerDeleteConfirm({ id: worker.id, name: worker.name })
+                                setWorkerHardDeleteConfirm({ id: worker.id, name: worker.name })
                               }}
                               className="text-xs text-red-600 hover:text-red-700 font-medium"
                             >
@@ -1636,7 +1612,6 @@ export default function ManagerDashboardClient({
       content: renderAdjustmentsContent(),
     },
   ]
-
 
   const pendingRequests = requests.filter(request => request.status === 'pending')
 
@@ -3340,43 +3315,78 @@ export default function ManagerDashboardClient({
         </div>
       )}
 
-      {/* ── Worker delete confirmation ── */}
-      {workerDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900">Remove worker?</h3>
-            <p className="mt-2 text-sm text-gray-600">
-              This will remove the worker from the active workforce. Their records will be kept safely in the system.
-            </p>
-            <div className="mt-6 flex justify-end gap-3">
+
+      {/* ── Worker HARD DELETE confirmation (permanent, irreversible) ── */}
+      {workerHardDeleteConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl border border-red-100">
+            {/* Header */}
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-100">
+                <svg className="h-5 w-5 text-red-700" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Permanently Delete Worker?</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  <span className="font-medium text-gray-700">{workerHardDeleteConfirm.name}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Warning body */}
+            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 mb-5">
+              <p className="text-sm text-red-800 font-medium">
+                Are you sure you want to permanently delete this worker?
+              </p>
+              <p className="mt-1 text-xs text-red-700">
+                This will remove their face profile, attendance records, documents, payroll data, and login credentials.
+                <strong> This action cannot be undone.</strong>
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setWorkerDeleteConfirm(null)}
-                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-                disabled={deleteWorkerPending}
+                onClick={() => setWorkerHardDeleteConfirm(null)}
+                disabled={deleteWorkerHardPending}
+                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
-              <form action={async (formData) => {
-                setDeleteWorkerPending(true)
-                const result = await softDeleteWorkerAction(adminActionInit, formData)
-                setDeleteWorkerPending(false)
-                if (result.status === 'success') {
-                  showToast({ type: 'success', title: 'Success', description: 'Worker removed successfully' })
-                  setWorkerDeleteConfirm(null)
-                  loadData()
-                  router.refresh()
-                } else {
-                  showToast({ type: 'error', title: 'Error', description: result.message || 'Failed to remove worker' })
-                }
-              }}>
-                <input type="hidden" name="worker_id" value={workerDeleteConfirm.id} />
+              <form
+                action={async (formData) => {
+                  setDeleteWorkerHardPending(true)
+                  try {
+                    const result = await deleteWorkerAction(adminActionInit, formData)
+                    if (result.status === 'success') {
+                      showToast({ type: 'success', title: 'Worker deleted', description: 'Worker deleted successfully' })
+                      setWorkerHardDeleteConfirm(null)
+                      // Remove from local list immediately; server revalidation syncs the rest.
+                      setWorkers(prev => prev.filter(w => w.id !== workerHardDeleteConfirm!.id))
+                      router.refresh()
+                    } else {
+                      showToast({ type: 'error', title: 'Delete failed', description: result.message || 'Failed to delete worker' })
+                    }
+                  } catch (err: any) {
+                    showToast({ type: 'error', title: 'Delete failed', description: err?.message || 'Unexpected error' })
+                  } finally {
+                    setDeleteWorkerHardPending(false)
+                  }
+                }}
+              >
+                <input type="hidden" name="worker_id" value={workerHardDeleteConfirm.id} />
                 <button
                   type="submit"
-                  disabled={deleteWorkerPending}
-                  className="rounded-xl bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700"
+                  disabled={deleteWorkerHardPending}
+                  className="rounded-xl bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-800 transition-colors"
                 >
-                  {deleteWorkerPending ? 'Removing...' : 'Remove'}
+                  {deleteWorkerHardPending ? 'Deleting…' : 'Delete Permanently'}
                 </button>
               </form>
             </div>

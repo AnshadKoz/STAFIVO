@@ -57,6 +57,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   bool _locationCheckPassed = false;
   String? _lastActionSummary;
   String? _locationStatusMessage;
+  bool _deletingAccount = false; // guards against double-tap on delete
 
   @override
   void initState() {
@@ -615,6 +616,134 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   }
   // --- END ADDED ---
 
+  // ── Delete account ────────────────────────────────────────────────────────
+  /// Shows a confirmation dialog and, on confirmation, permanently deletes
+  /// the worker's account, face profile, storage file, then navigates to /login.
+  Future<void> _handleDeleteAccount() async {
+    if (_deletingAccount) return; // guard against double-tap
+
+    // ── Confirmation dialog ───────────────────────────────────────────────────
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        backgroundColor: Colors.white,
+        contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.delete_forever_rounded,
+                  color: Colors.red.shade700, size: 26),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Delete Account',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Are you sure you want to permanently delete your account?',
+              style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'This will remove your face profile, attendance history access, '
+              'and all associated data. This action cannot be undone.',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade700,
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text('Cancel'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red.shade700,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Text(
+                'Delete Permanently',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    setState(() => _deletingAccount = true);
+
+    // ── Execute delete ─────────────────────────────────────────────────────────
+    try {
+      await SupabaseRepo.deleteCurrentWorkerAccount();
+      // Account deleted + signed out inside the repo call.
+      if (!mounted) return;
+      Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
+    } on WorkerDeleteException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Delete failed: $e'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _deletingAccount = false);
+    }
+  }
+  // ── End delete account ────────────────────────────────────────────────────
+
   // --- ADDED: Worker info card replaces outlet+worker dropdowns ---
   Widget _buildWorkerInfoCard(ColorScheme scheme) {
     return Container(
@@ -977,11 +1106,28 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
         'Check-in / Check-out',
         implyLeading: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: _handleLogout,
-          ),
+          if (_deletingAccount)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else ...([
+            IconButton(
+              icon: const Icon(Icons.delete_forever_rounded),
+              tooltip: 'Delete account',
+              color: Colors.red.shade400,
+              onPressed: _handleDeleteAccount,
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Log out',
+              onPressed: _handleLogout,
+            ),
+          ]),
         ],
       ),
       body: SafeArea(

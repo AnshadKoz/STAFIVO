@@ -42,6 +42,67 @@ class SupabaseRepo {
     return _castList(rows);
   }
 
+  /// Returns true if the currently logged-in worker already has a face profile.
+  ///
+  /// Correct flow:
+  ///   auth.user.id → workers.auth_id → workers.id → RPC get_face_profile(uuid) → bool
+  ///
+  /// The RPC `get_face_profile` is declared as RETURNS boolean — PostgREST
+  /// wraps a scalar-returning function in a single-element list, so the
+  /// raw response is `[true]` or `[false]`.  We extract element [0] and
+  /// coerce it to bool.  If anything is unexpected we fall back to false
+  /// (fail-open: send to enrollment rather than silently skipping it).
+  static Future<bool> isCurrentWorkerEnrolled() async {
+    try {
+      final authUser = sb.auth.currentUser;
+      if (authUser == null) return false;
+
+      // Resolve auth_id → workers.id.
+      // CRITICAL: face_profiles.worker_id is a FK to workers.id, NOT app_users.id.
+      // .maybeSingle() returns null when no row matches; avoids manual isEmpty check.
+      final worker = await sb
+          .from('workers')
+          .select('id')
+          .eq('auth_id', authUser.id)
+          .maybeSingle();
+
+      if (worker == null) return false;
+
+      final workerId = worker['id']?.toString();
+      if (workerId == null || workerId.isEmpty) return false;
+
+      // get_face_profile(p_worker_id uuid) RETURNS boolean.
+      // PostgREST wraps a scalar function result in a list: [true] or [false].
+      // We must NOT check `rows is List && rows.isNotEmpty` — that would be
+      // true even when the function returns false.  Extract the actual value.
+      final dynamic result = await sb.rpc(
+        'get_face_profile',
+        params: {'p_worker_id': workerId},
+      );
+
+      // PostgREST scalar wrapping: result is either a raw bool or a List<dynamic>
+      // containing one bool element.  Handle both forms defensively.
+      if (result is bool) return result;
+      if (result is List && result.isNotEmpty) {
+        final first = result.first;
+        if (first is bool) return first;
+      }
+
+      developer.log(
+        'isCurrentWorkerEnrolled: unexpected RPC result type=${result.runtimeType} value=$result',
+        name: 'SupabaseRepo',
+      );
+      return false;
+    } catch (e) {
+      developer.log(
+        'isCurrentWorkerEnrolled check failed: $e',
+        name: 'SupabaseRepo',
+      );
+      // Fail-open: send to enrollment screen so the worker can enroll.
+      return false;
+    }
+  }
+
   /// Fetch all outlets for selection dropdown.
   static Future<List<Map<String, dynamic>>> listOutlets() async {
     final rows = await sb
@@ -212,6 +273,116 @@ class SupabaseRepo {
       throw AttendanceNetworkError(e.toString());
     }
   }
+
+  // ── Hard delete ──────────────────────────────────────────────────────────────
+
+  /// Permanently deletes the currently logged-in worker's account.
+  ///
+  /// Delete order (all handled atomically inside the RPC):
+  ///   1. face_profiles row
+  ///   2. workers row  (cascades any FK-linked tables)
+  ///   3. auth.users record
+  ///
+  /// The RPC returns the storage `image_url` so we can remove the file from
+  /// Supabase Storage here in the client (storage admin cannot be called from
+  /// inside a SECURITY DEFINER function without the service-role key).
+  ///
+  /// After a successful delete the user is signed out.
+  ///
+  /// Throws [WorkerDeleteException] on any identifiable failure so callers
+  /// can surface a human-readable message.
+  static Future<void> deleteCurrentWorkerAccount() async {
+    final authUser = sb.auth.currentUser;
+    if (authUser == null) {
+      throw WorkerDeleteException('Not logged in. Please sign in and try again.');
+    }
+
+    // ── Step 1: Resolve workers.id from auth_id ──────────────────────────────
+    final worker = await sb
+        .from('workers')
+        .select('id')
+        .eq('auth_id', authUser.id)
+        .maybeSingle();
+
+    if (worker == null) {
+      throw WorkerDeleteException('No worker account found for this user.');
+    }
+    final workerId = worker['id']?.toString();
+    if (workerId == null || workerId.isEmpty) {
+      throw WorkerDeleteException('Worker record is incomplete. Contact support.');
+    }
+
+    // ── Step 2: Call RPC — deletes face_profiles + workers + auth user ────────
+    // The function returns the storage image_url (may be null).
+    String? imageUrl;
+    try {
+      final dynamic rpcResult = await sb.rpc(
+        'delete_worker_account',
+        params: {'p_worker_id': workerId},
+      );
+      // PostgREST wraps scalar returns in a list.
+      if (rpcResult is List && rpcResult.isNotEmpty) {
+        imageUrl = rpcResult.first?.toString();
+      } else if (rpcResult is String && rpcResult.isNotEmpty) {
+        imageUrl = rpcResult;
+      }
+    } on PostgrestException catch (e) {
+      developer.log(
+        'deleteCurrentWorkerAccount RPC failed: ${e.message}',
+        name: 'SupabaseRepo',
+        error: e,
+      );
+      final hint = e.hint ?? '';
+      if (hint.contains('worker_not_found')) {
+        throw WorkerDeleteException('Worker not found. It may have already been deleted.');
+      }
+      if (hint.contains('unauthorized')) {
+        throw WorkerDeleteException('Permission denied. You can only delete your own account.');
+      }
+      throw WorkerDeleteException('Delete failed: ${e.message}');
+    } catch (e) {
+      developer.log(
+        'deleteCurrentWorkerAccount unexpected error: $e',
+        name: 'SupabaseRepo',
+      );
+      throw WorkerDeleteException('Unexpected error during delete: $e');
+    }
+
+    // ── Step 3: Delete storage file (best-effort) ─────────────────────────────
+    // The RPC returns the raw image_url as stored, e.g. "/faces/workers/<id>/enroll-best.jpg"
+    // or "workers/<id>/enroll-best.jpg".  We strip a leading "/" or the bucket
+    // prefix "/faces/" to get the bucket-relative object path.
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      try {
+        // Normalise: strip leading "/" and optional "faces/" bucket prefix.
+        var storagePath = imageUrl.replaceFirst(RegExp(r'^/'), '');
+        if (storagePath.startsWith('faces/')) {
+          storagePath = storagePath.substring('faces/'.length);
+        }
+        await sb.storage.from('faces').remove([storagePath]);
+        developer.log(
+          'Deleted storage file: $storagePath',
+          name: 'SupabaseRepo',
+        );
+      } catch (e) {
+        // Storage deletion is non-fatal: DB records are already gone.
+        // Log for manual cleanup; do not abort the overall flow.
+        developer.log(
+          'WARNING: Storage file deletion failed (non-fatal): $e\n'
+          'Path attempted: $imageUrl',
+          name: 'SupabaseRepo',
+        );
+      }
+    }
+
+    // ── Step 4: Sign out ──────────────────────────────────────────────────────
+    // The auth user no longer exists in the DB; signing out clears local tokens.
+    try {
+      await sb.auth.signOut();
+    } catch (_) {
+      // Ignore sign-out errors — the account is already deleted.
+    }
+  }
 }
 
 List<double>? _parseEmbedding(dynamic raw) {
@@ -261,6 +432,13 @@ class AttendanceAuthError implements Exception {
   final String message;
   @override
   String toString() => 'AttendanceAuthError($message)';
+}
+
+class WorkerDeleteException implements Exception {
+  WorkerDeleteException(this.message);
+  final String message;
+  @override
+  String toString() => 'WorkerDeleteException($message)';
 }
 
 class WorkerDropdown {
