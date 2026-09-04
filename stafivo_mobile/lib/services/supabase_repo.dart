@@ -188,37 +188,77 @@ class SupabaseRepo {
     return row;
   }
 
-  /// Returns stored face profile info.
-  /// Uses RPC function to safely retrieve face profile without exposing face_profiles directly.
-  /// 
+  /// Returns stored face profile info (worker_id + embedding) for verification.
+  ///
+  /// IMPORTANT: Uses direct table query, NOT get_face_profile RPC.
+  /// get_face_profile RPC is declared RETURNS boolean — it only checks existence.
+  /// Fetching the actual embedding for face verification requires a SELECT.
+  ///
   /// CRITICAL SECURITY: Validates that returned worker_id matches requested worker_id
   /// to prevent cross-worker face acceptance attacks.
   static Future<Map<String, dynamic>?> faceProfile(String workerId) async {
-    final rows = await sb.rpc(
-      'get_face_profile',
-      params: {'p_worker_id': workerId},
-    );
-    if (rows.isEmpty) return null;
-    final row = Map<String, dynamic>.from(rows[0] as Map);
-    
-    // CRITICAL SECURITY CHECK: Validate worker_id binding
-    final returnedWorkerId = row['worker_id']?.toString();
-    if (returnedWorkerId != workerId) {
+    // ignore: avoid_print
+    print('[faceProfile] querying face_profiles for worker_id=$workerId');
+
+    try {
+      final dynamic result = await sb
+          .from('face_profiles')
+          .select('worker_id, embedding')
+          .eq('worker_id', workerId)
+          .maybeSingle();
+
+      // ignore: avoid_print
+      print('[faceProfile] raw result type=${result?.runtimeType} value=${result == null ? "null" : "found"}');
+
+      if (result == null) {
+        // ignore: avoid_print
+        print('[faceProfile] no row found for worker_id=$workerId');
+        return null;
+      }
+
+      if (result is! Map) {
+        developer.log(
+          'faceProfile: unexpected result type ${result.runtimeType}. '
+          'Expected Map, got: $result.',
+          name: 'SupabaseRepo.faceProfile',
+        );
+        return null;
+      }
+
+      final row = Map<String, dynamic>.from(result);
+
+      // CRITICAL SECURITY CHECK: Validate worker_id binding
+      // This prevents cross-worker face acceptance attacks.
+      final returnedWorkerId = row['worker_id']?.toString();
+      if (returnedWorkerId != workerId) {
+        developer.log(
+          'SECURITY ERROR: Worker ID mismatch detected. '
+          'Requested: $workerId, Returned: $returnedWorkerId',
+          name: 'SupabaseRepo.faceProfile',
+          level: 1000, // SHOUT level
+        );
+        throw Exception(
+          'Security validation failed: Face profile worker_id mismatch. '
+          'This incident has been logged.'
+        );
+      }
+
+      // Parse embedding from vector (PostgREST converts pgvector to JSON array)
+      row['embedding'] = _parseEmbedding(row['embedding']);
+      // ignore: avoid_print
+      print('[faceProfile] embedding parsed length=${row['embedding'] is List ? (row['embedding'] as List).length : "null"}');
+      return row;
+    } catch (e, stack) {
+      // ignore: avoid_print
+      print('[faceProfile] ERROR: $e');
       developer.log(
-        'SECURITY ERROR: Worker ID mismatch detected. '
-        'Requested: $workerId, Returned: $returnedWorkerId',
+        'faceProfile failed: $e',
         name: 'SupabaseRepo.faceProfile',
-        level: 1000, // SHOUT level
+        error: e,
+        stackTrace: stack,
       );
-      throw Exception(
-        'Security validation failed: Face profile worker_id mismatch. '
-        'This incident has been logged.'
-      );
+      rethrow;
     }
-    
-    // Parse embedding from vector (PostgREST converts vector to JSON array)
-    row['embedding'] = _parseEmbedding(row['embedding']);
-    return row;
   }
 
   /// Last action for the worker (to prevent double IN / OUT).

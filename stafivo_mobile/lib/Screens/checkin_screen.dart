@@ -108,13 +108,16 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
         return;
       }
 
-      final List<dynamic> appUserRows = await Supabase.instance.client
-          .from('app_users')
-          .select('id, auth_id, role, outlet_id')
+      // Resolve workers.id via auth_id — face_profiles.worker_id is a FK to
+      // workers.id, NOT app_users.id. Using app_users.id here would cause
+      // faceProfile() to always return null (wrong table FK target).
+      final List<dynamic> workerRows = await Supabase.instance.client
+          .from('workers')
+          .select('id, name')
           .eq('auth_id', authUser.id)
           .limit(1);
 
-      if (appUserRows.isEmpty) {
+      if (workerRows.isEmpty) {
         if (!mounted) return;
         setState(() {
           _bootstrapError =
@@ -124,9 +127,9 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
         return;
       }
 
-      final appUser = Map<String, dynamic>.from(appUserRows.first as Map);
-      final resolvedWorkerId = appUser['id']?.toString();
-      final resolvedOutletId = appUser['outlet_id']?.toString();
+      final workerRow = Map<String, dynamic>.from(workerRows.first as Map);
+      final resolvedWorkerId = workerRow['id']?.toString();
+      final resolvedWorkerName = workerRow['name']?.toString();
 
       if (resolvedWorkerId == null) {
         if (!mounted) return;
@@ -137,21 +140,21 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
         return;
       }
 
-      // Fetch worker name from workers table
-      String? resolvedWorkerName;
+      // Fetch outlet_id from app_users for geofence check
+      String? resolvedOutletId;
       try {
-        final List<dynamic> workerRows = await Supabase.instance.client
-            .from('workers')
-            .select('name')
+        final List<dynamic> appUserRows = await Supabase.instance.client
+            .from('app_users')
+            .select('outlet_id')
             .eq('auth_id', authUser.id)
             .limit(1);
-        if (workerRows.isNotEmpty) {
-          resolvedWorkerName =
-              (workerRows.first as Map)['name']?.toString();
+        if (appUserRows.isNotEmpty) {
+          resolvedOutletId =
+              (appUserRows.first as Map)['outlet_id']?.toString();
         }
       } catch (e) {
         developer.log(
-          'Could not fetch worker name: $e',
+          'Could not fetch outlet_id from app_users: $e',
           name: 'CheckInScreen._initAll',
         );
       }
@@ -494,78 +497,122 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   }
 
   Future<bool> _verifyFace() async {
-    final shot = await _camera!.takePicture();
-    final bytes = await shot.readAsBytes();
-    final tensor = await _cropper.cropAndPreprocess(
-      bytes,
-      imagePath: shot.path,
-    );
-    if (tensor == null) {
-      _toast('Need exactly one face. Hold steady and retry.');
-      return false;
-    }
+    print('[1] verifyFace start');
+    print('[2] workerId: $_workerId');
 
-    // --- CHANGED: Uses _workerId instead of _selectedWorkerId ---
-    final profile = await SupabaseRepo.faceProfile(_workerId!);
-    // --- END CHANGED ---
-    if (profile == null) {
-      _toast('No face profile for this worker. Enroll first.');
-      return false;
-    }
+    try {
+      final shot = await _camera!.takePicture();
+      final bytes = await shot.readAsBytes();
 
-    // CRITICAL SECURITY CHECK: Validate worker_id binding
-    // This prevents cross-worker face acceptance attacks
-    final profileWorkerId = profile['worker_id']?.toString();
-    // --- CHANGED: Uses _workerId instead of _selectedWorkerId ---
-    if (profileWorkerId != _workerId) {
-    // --- END CHANGED ---
+      print('[4] generating embedding (face crop + ML detect)');
+      final tensor = await _cropper
+          .cropAndPreprocess(bytes, imagePath: shot.path)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              print('[ERROR] cropAndPreprocess timed out after 10s');
+              return null;
+            },
+          );
+
+      if (tensor == null) {
+        print('[9] FAILURE — no face or crop timed out');
+        _toast('Need exactly one face. Hold steady and retry.');
+        return false;
+      }
+      print('[5] embedding generated');
+
+      // --- CHANGED: Uses _workerId instead of _selectedWorkerId ---
+      print('[3] fetching face profile for workerId=$_workerId');
+      final profile = await SupabaseRepo.faceProfile(_workerId!)
+          .timeout(
+            const Duration(seconds: 8),
+            onTimeout: () {
+              print('[ERROR] faceProfile() timed out after 8s');
+              return null;
+            },
+          );
+      // --- END CHANGED ---
+      print('[3] profile fetched: ${profile == null ? "null" : "found"}');
+
+      if (profile == null) {
+        print('[9] FAILURE — no face profile for worker $_workerId');
+        _toast('No face profile for this worker. Enroll first.');
+        return false;
+      }
+
+      // CRITICAL SECURITY CHECK: Validate worker_id binding
+      // This prevents cross-worker face acceptance attacks
+      final profileWorkerId = profile['worker_id']?.toString();
+      // --- CHANGED: Uses _workerId instead of _selectedWorkerId ---
+      if (profileWorkerId != _workerId) {
+      // --- END CHANGED ---
+        developer.log(
+          'SECURITY ERROR: Worker ID mismatch in face verification. '
+          'Selected: $_workerId, Profile: $profileWorkerId',
+          name: 'CheckInScreen._verifyFace',
+          level: 1000, // SHOUT level
+        );
+        print('[ERROR] worker_id mismatch — selected=$_workerId profile=$profileWorkerId');
+        _toast('Security validation failed. Please try again or contact support.');
+        return false;
+      }
+
+      final rawEmbedding = profile['embedding'];
+      if (rawEmbedding is! List || rawEmbedding.isEmpty) {
+        print('[9] FAILURE — embedding missing in profile');
+        _toast('Face profile missing embedding data. Please re-enroll this worker.');
+        return false;
+      }
+
+      final storedEmbedding = rawEmbedding.map((e) => (e as num).toDouble()).toList();
+      print('[6] comparing faces (probe.len=${storedEmbedding.length})');
+      final probe = _embedder.embed(tensor);
+      if (storedEmbedding.length != probe.length) {
+        print('[9] FAILURE — embedding length mismatch stored=${storedEmbedding.length} probe=${probe.length}');
+        _toast('Face profile is outdated. Please re-enroll this worker.');
+        return false;
+      }
+
+      // Compute cosine distance and confidence
+      final distance = cosineDistance(probe, storedEmbedding);
+      final confidence = 1 - distance;
+      _lastFaceScore = confidence;
+      print('[7] match result: distance=$distance confidence=$confidence');
+
+      // CRITICAL: Dual-gate verification - BOTH checks must pass
+      // This prevents low-quality matches (60-70%) from proceeding
+      // even if they pass the distance threshold.
+      //
+      // Gate 1: Distance check (similarity threshold)
+      if (distance > _faceThreshold) {
+        print('[9] FAILURE — distance $distance > threshold $_faceThreshold');
+        _toast('Face mismatch. Please try again.');
+        return false;
+      }
+
+      // Gate 2: Confidence check (quality threshold)
+      // Rejects faces detected in poor lighting, bad angles, or partial occlusion
+      if (confidence < _faceMinConfidence) {
+        print('[9] FAILURE — confidence $confidence < minimum $_faceMinConfidence');
+        _toast('Face detected, but confidence is too low. Please hold the phone straight and try again.');
+        return false;
+      }
+
+      // Both gates passed - proceed to location check
+      print('[8] SUCCESS — face verified for worker $_workerId');
+      return true;
+    } catch (e, stack) {
+      print('[ERROR] _verifyFace exception: $e');
       developer.log(
-        'SECURITY ERROR: Worker ID mismatch in face verification. '
-        'Selected: $_workerId, Profile: $profileWorkerId',
+        '_verifyFace failed: $e',
         name: 'CheckInScreen._verifyFace',
-        level: 1000, // SHOUT level
+        error: e,
+        stackTrace: stack,
       );
-      _toast('Security validation failed. Please try again or contact support.');
+      _toast('Face check failed: $e');
       return false;
     }
-
-    final rawEmbedding = profile['embedding'];
-    if (rawEmbedding is! List || rawEmbedding.isEmpty) {
-      _toast('Face profile missing embedding data. Please re-enroll this worker.');
-      return false;
-    }
-
-    final storedEmbedding = rawEmbedding.map((e) => (e as num).toDouble()).toList();
-    final probe = _embedder.embed(tensor);
-    if (storedEmbedding.length != probe.length) {
-      _toast('Face profile is outdated. Please re-enroll this worker.');
-      return false;
-    }
-
-    // Compute cosine distance and confidence
-    final distance = cosineDistance(probe, storedEmbedding);
-    final confidence = 1 - distance;
-    _lastFaceScore = confidence;
-
-    // CRITICAL: Dual-gate verification - BOTH checks must pass
-    // This prevents low-quality matches (60-70%) from proceeding
-    // even if they pass the distance threshold.
-    //
-    // Gate 1: Distance check (similarity threshold)
-    if (distance > _faceThreshold) {
-      _toast('Face mismatch. Please try again.');
-      return false;
-    }
-
-    // Gate 2: Confidence check (quality threshold)
-    // Rejects faces detected in poor lighting, bad angles, or partial occlusion
-    if (confidence < _faceMinConfidence) {
-      _toast('Face detected, but confidence is too low. Please hold the phone straight and try again.');
-      return false;
-    }
-
-    // Both gates passed - proceed to location check
-    return true;
   }
 
   void _toast(String msg) {

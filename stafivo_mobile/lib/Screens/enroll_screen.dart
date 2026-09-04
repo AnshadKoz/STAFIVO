@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../enroll/enroll_logic.dart';
+import '../services/supabase_repo.dart';
 import '../widgets/face_frame_overlay.dart';
 import '../widgets/stafivo_app_bar.dart';
 import '../widgets/alert_dialog_helper.dart';
@@ -21,6 +22,7 @@ class _EnrollScreenState extends State<EnrollScreen> {
   CameraController? _camera;
   late final EnrollController _enrollController;
 
+  bool _checkingEnrollment = true;
   bool _ready = false;
   bool _saving = false;
   String? _workerId;          // resolved from logged-in auth user
@@ -33,7 +35,41 @@ class _EnrollScreenState extends State<EnrollScreen> {
   void initState() {
     super.initState();
     _enrollController = EnrollController();
-    _initAll();
+    _guardEnrollment();
+  }
+
+  Future<void> _guardEnrollment() async {
+    try {
+      final alreadyEnrolled = await SupabaseRepo.isCurrentWorkerEnrolled();
+      if (!mounted) return;
+      if (alreadyEnrolled) {
+        Navigator.of(context).pushReplacementNamed('/check');
+        return;
+      }
+    } catch (_) {}
+    if (!mounted) return;
+
+    await _resolveWorker();
+    if (!mounted) return;
+
+    if (_workerId == null) {
+      Navigator.of(context).pushReplacementNamed('/login');
+      return;
+    }
+
+    try {
+      final profile = await SupabaseRepo.faceProfile(_workerId!);
+      if (!mounted) return;
+      if (profile != null) {
+        Navigator.of(context).pushReplacementNamed('/check');
+        return;
+      }
+    } catch (_) {}
+
+    if (mounted) {
+      setState(() => _checkingEnrollment = false);
+      _initAll();
+    }
   }
 
   Future<void> _initAll() async {
@@ -42,7 +78,6 @@ class _EnrollScreenState extends State<EnrollScreen> {
       _cameraError = null;
       _bootstrapError = null;
     });
-    await _resolveWorker();
     await _initEmbedder();
     await _initializeCamera();
     if (!mounted) return;
@@ -534,6 +569,11 @@ class _EnrollScreenState extends State<EnrollScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_checkingEnrollment) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
     final scheme = Theme.of(context).colorScheme;
     final previewHeight = MediaQuery.of(context).size.height * 0.38;
     return PopScope(

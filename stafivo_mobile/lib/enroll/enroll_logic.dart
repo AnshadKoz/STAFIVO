@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -102,18 +103,16 @@ class EnrollController {
       );
     }
 
-    // Debug: confirm exact values being sent to the RPC.
-    assert(() {
-      // ignore: avoid_print
-      print('[EnrollController.saveProfile] '
-          'worker_id=$workerId '
-          'embedding.length=${result.embedding.length} '
-          'faceHash=${result.faceHash} '
-          'model=${_embedder.modelName}');
-      return true;
-    }());
+    // Unconditional trace — visible in logcat regardless of build mode.
+    // This is the key diagnostic for the missing face_profiles insert.
+    // ignore: avoid_print
+    print('[saveProfile] CALLING enroll_face_profile '
+        'worker_id=$workerId '
+        'embedding.length=${result.embedding.length} '
+        'faceHash=${result.faceHash} '
+        'model=${_embedder.modelName}');
 
-    // Use RPC function for safe enrollment with duplicate detection
+    // Use RPC function for safe enrollment with duplicate detection.
     final params = <String, dynamic>{
       'p_worker_id': workerId,
       'p_embedding': result.embedding, // Supabase converts List<double> to vector automatically
@@ -121,13 +120,26 @@ class EnrollController {
       'p_embed_model': _embedder.modelName,
       'p_version': 3,
     };
-
     // Only include image_url if provided (SQL function has DEFAULT NULL)
     if (imageUrl != null) {
       params['p_image_url'] = imageUrl;
     }
 
-    await _client.rpc('enroll_face_profile', params: params);
+    try {
+      await _client.rpc('enroll_face_profile', params: params);
+      // ignore: avoid_print
+      print('[saveProfile] enroll_face_profile RPC returned OK');
+    } catch (e, stack) {
+      // ignore: avoid_print
+      print('[saveProfile] enroll_face_profile RPC FAILED: $e');
+      developer.log(
+        'saveProfile RPC failed',
+        name: 'EnrollController.saveProfile',
+        error: e,
+        stackTrace: stack,
+      );
+      rethrow;
+    }
   }
 
   Future<void> dispose() async {
