@@ -792,6 +792,44 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   // ── End delete account ────────────────────────────────────────────────────
 
   // --- ADDED: Worker info card replaces outlet+worker dropdowns ---
+  Widget _buildDashboardCard(ColorScheme scheme) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pushNamed('/worker-dashboard'),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          color: scheme.primary.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(Icons.dashboard_rounded,
+                  color: scheme.primary, size: 22),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                'My Dashboard',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: scheme.primary,
+                    ),
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded,
+                color: scheme.primary.withValues(alpha: 0.6)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildWorkerInfoCard(ColorScheme scheme) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -1186,6 +1224,9 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
               // --- CHANGED: Worker info card replaces outlet+worker dropdown card ---
               _buildWorkerInfoCard(scheme),
               // --- END CHANGED ---
+              const SizedBox(height: 10),
+              // ── My Dashboard card ─────────────────────────────────────────
+              _buildDashboardCard(scheme),
               const SizedBox(height: 16),
               if (_pipelineError != null)
                 Container(

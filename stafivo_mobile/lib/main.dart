@@ -7,6 +7,7 @@ import 'screens/checkin_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'screens/worker_dashboard_screen.dart';
 import 'services/sync_service.dart';
 import 'theme/stafivo_theme.dart';
 
@@ -40,6 +41,7 @@ class StafivoApp extends StatelessWidget {
         '/login': (_) => const LoginScreen(),
         '/welcome': (_) => const WelcomeScreen(),
         '/check': (_) => const CheckInScreen(),
+        '/worker-dashboard': (_) => const WorkerDashboardScreen(),
       },
       navigatorObservers: [railRouteObserver],
       onGenerateRoute: (settings) {
