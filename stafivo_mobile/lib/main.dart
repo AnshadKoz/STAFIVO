@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'navigation/route_observer.dart';
 import 'screens/enroll_screen.dart';
-import 'screens/checkin_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/worker_dashboard_screen.dart';
+import 'screens/worker_shell.dart';
+import 'services/worker_context.dart';
 import 'services/sync_service.dart';
 import 'theme/stafivo_theme.dart';
 
@@ -32,7 +34,9 @@ class StafivoApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return ChangeNotifierProvider(
+      create: (_) => WorkerContext(),
+      child: MaterialApp(
       title: 'STAFIVO',
       debugShowCheckedModeBanner: false,
       theme: stafivoTheme(),
@@ -40,8 +44,10 @@ class StafivoApp extends StatelessWidget {
       routes: {
         '/login': (_) => const LoginScreen(),
         '/welcome': (_) => const WelcomeScreen(),
-        '/check': (_) => const CheckInScreen(),
+        // Legacy direct route — preserved for backward compatibility
+        '/check': (_) => const WorkerShell(),
         '/worker-dashboard': (_) => const WorkerDashboardScreen(),
+        '/worker-shell': (_) => const WorkerShell(),
       },
       navigatorObservers: [railRouteObserver],
       onGenerateRoute: (settings) {
@@ -53,6 +59,7 @@ class StafivoApp extends StatelessWidget {
         }
         return null;
       },
+      ),
     );
   }
 }

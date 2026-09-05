@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:geolocator/geolocator.dart';
@@ -707,9 +708,50 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware, WidgetsB
         error: e,
         stackTrace: stack,
       );
+
+      // ── Network failure guard ─────────────────────────────────────────────
+      // Detect SocketException / "Failed host lookup" / ClientException
+      // caused by no internet. Show a clean dialog instead of raw error.
+      final msg = e.toString().toLowerCase();
+      final isNetworkError = e is SocketException ||
+          msg.contains('failed host lookup') ||
+          msg.contains('clientexception') ||
+          msg.contains('socketexception') ||
+          msg.contains('network is unreachable') ||
+          msg.contains('connection refused');
+
+      if (isNetworkError) {
+        // ignore: avoid_print
+        print('[ERROR] network unavailable during face verification');
+        if (mounted) _showNoInternetDialog();
+        return false;
+      }
+      // ── End network failure guard ─────────────────────────────────────────
+
       _toast('Face check failed: $e');
       return false;
     }
+  }
+
+  /// Shows a clean dialog when there is no internet during face verification.
+  /// No new packages — uses standard AlertDialog.
+  void _showNoInternetDialog() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('No Internet Connection'),
+        content: const Text(
+          'Internet connection is required for face verification.\n'
+          'Please turn on mobile data or Wi-Fi.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _toast(String msg) {
