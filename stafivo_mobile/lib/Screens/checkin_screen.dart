@@ -16,6 +16,7 @@ import '../services/supabase_repo.dart';
 import '../widgets/face_frame_overlay.dart';
 import '../widgets/stafivo_app_bar.dart';
 import '../widgets/alert_dialog_helper.dart';
+import '../theme/stafivo_colors.dart';
 
 class CheckInScreen extends StatefulWidget {
   const CheckInScreen({super.key});
@@ -791,107 +792,168 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   }
   // ── End delete account ────────────────────────────────────────────────────
 
-  // --- ADDED: Worker info card replaces outlet+worker dropdowns ---
-  Widget _buildDashboardCard(ColorScheme scheme) {
-    return GestureDetector(
-      onTap: () => Navigator.of(context).pushNamed('/worker-dashboard'),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        decoration: BoxDecoration(
-          color: scheme.primary.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: scheme.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(Icons.dashboard_rounded,
-                  color: scheme.primary, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                'My Dashboard',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: scheme.primary,
-                    ),
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded,
-                color: scheme.primary.withValues(alpha: 0.6)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildWorkerInfoCard(ColorScheme scheme) {
+  // ── Unified Executive Worker Header ─────────────────────────────────────────
+  Widget _buildWorkerHeader(ColorScheme scheme) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: StafivoColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: StafivoColors.primary.withValues(alpha: 0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: scheme.primary.withValues(alpha: 0.12),
-            child: Icon(Icons.person, color: scheme.primary, size: 28),
+          // Avatar with gradient border
+          Container(
+            padding: const EdgeInsets.all(2.5),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [StafivoColors.primary, StafivoColors.secondary],
+              ),
+            ),
+            child: const CircleAvatar(
+              radius: 20,
+              backgroundColor: Color(0xFFEFF6FF),
+              child: Icon(Icons.person_rounded, color: StafivoColors.primary, size: 24),
+            ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
+          // Name & Outlet & Status
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _workerName ?? 'Worker',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: scheme.onSurface,
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        _workerName ?? 'Worker',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                          color: StafivoColors.textPrimary,
+                          letterSpacing: -0.2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: StafivoColors.success,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
                 ),
-                if (_outletName != null) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(Icons.location_on, size: 14, color: scheme.primary),
-                      const SizedBox(width: 4),
-                      Text(
-                        _outletName!,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurface.withValues(alpha: 0.65),
-                            ),
+                const SizedBox(height: 3),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_rounded,
+                        size: 13, color: StafivoColors.secondary),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: Text(
+                        _outletName ?? 'Assigned Outlet',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: StafivoColors.textSecondary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Dashboard button chip
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () => Navigator.of(context).pushNamed('/worker-dashboard'),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: StafivoColors.secondary.withValues(alpha: 0.2),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Icon(Icons.dashboard_rounded,
+                        size: 14, color: StafivoColors.secondary),
+                    SizedBox(width: 5),
+                    Text(
+                      'Dashboard',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: StafivoColors.secondary,
+                      ),
+                    ),
+                    SizedBox(width: 2),
+                    Icon(Icons.chevron_right_rounded,
+                        size: 15, color: StafivoColors.secondary),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
       ),
     );
   }
-  // --- END ADDED ---
 
   Widget _buildCameraPreview(double height) {
     final controller = _camera;
-    final scheme = Theme.of(context).colorScheme;
     if (controller != null && controller.value.isInitialized) {
       final previewSize = controller.value.previewSize;
       final width = previewSize?.height ?? height * 0.75;
       final innerHeight = previewSize?.width ?? height;
 
-      return SizedBox(
+      final overlayColor = _faceCheckPassed
+          ? const Color(0xFF22C55E)
+          : (_busy
+              ? StafivoColors.secondary
+              : Colors.white.withValues(alpha: 0.85));
+
+      return Container(
         height: height,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(
+            color: _faceCheckPassed
+                ? const Color(0xFF22C55E).withValues(alpha: 0.5)
+                : StafivoColors.border,
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(32),
+          borderRadius: BorderRadius.circular(24.5),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -906,31 +968,97 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
                   ),
                 ),
               ),
-              const FaceFrameOverlay(color: Colors.white),
+              FaceFrameOverlay(color: overlayColor),
+              // Top-left live telemetry pill
               Positioned(
-                left: 20,
-                top: 20,
+                left: 16,
+                top: 16,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(999),
+                    color: Colors.black.withValues(alpha: 0.65),
+                    borderRadius: BorderRadius.circular(20),
+                    border:
+                        Border.all(color: Colors.white.withValues(alpha: 0.15)),
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.camera_front, color: Colors.white, size: 16),
-                      const SizedBox(width: 6),
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: _faceCheckPassed
+                              ? const Color(0xFF22C55E)
+                              : (_busy
+                                  ? StafivoColors.secondary
+                                  : const Color(0xFF4ADE80)),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: (_faceCheckPassed
+                                      ? const Color(0xFF22C55E)
+                                      : const Color(0xFF4ADE80))
+                                  .withValues(alpha: 0.6),
+                              blurRadius: 6,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 7),
                       Text(
-                        'Live preview',
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+                        _faceCheckPassed
+                            ? 'Face Verified'
+                            : (_busy ? 'Verifying Face...' : 'Biometric Active'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
+              // Top-right offline badge (if any)
+              if (_pendingCount > 0)
+                Positioned(
+                  right: 16,
+                  top: 16,
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD97706).withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.2),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.cloud_off_rounded,
+                            color: Colors.white, size: 13),
+                        const SizedBox(width: 5),
+                        Text(
+                          '$_pendingCount queued',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -939,128 +1067,173 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
 
     Widget message;
     if (_cameraError != null) {
-      message = Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.warning_amber_rounded, color: scheme.error),
-          const SizedBox(height: 8),
-          Text(
-            'Camera unavailable',
-            style: TextStyle(fontWeight: FontWeight.w600, color: scheme.error),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _cameraError!,
-            textAlign: TextAlign.center,
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.7)),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.icon(
-            onPressed: _cameraInitializing ? null : _initializeCamera,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry camera'),
-          ),
-        ],
+      message = Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.videocam_off_rounded,
+                color: Colors.amber.shade300, size: 36),
+            const SizedBox(height: 10),
+            const Text(
+              'Camera Preview Unavailable',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _cameraError!,
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
+            ),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              onPressed: _cameraInitializing ? null : _initializeCamera,
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Restart Camera'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: StafivoColors.secondary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
       );
     } else if (_cameraInitializing) {
-      message = const CircularProgressIndicator();
+      message = const CircularProgressIndicator(color: StafivoColors.secondary);
     } else {
       message = Column(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          const CircularProgressIndicator(),
-          const SizedBox(height: 12),
+        children: const [
+          CircularProgressIndicator(color: StafivoColors.secondary),
+          SizedBox(height: 14),
           Text(
-            'Starting camera...',
-            style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.7)),
+            'Initializing Biometric Camera...',
+            style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
         ],
       );
     }
 
-    return SizedBox(
+    return Container(
       height: height,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(32),
-        child: Container(
-          color: Colors.black.withValues(alpha: 0.85),
-          child: Center(child: message),
-        ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: StafivoColors.border),
       ),
+      child: Center(child: message),
     );
   }
 
   Widget _buildActionButtons(ColorScheme scheme) {
     return Row(
       children: [
+        // ── Check In ─────────────────────────
         Expanded(
-          child: FilledButton(
-            onPressed: _busy ? null : () => _doAction('IN'),
-            style: FilledButton.styleFrom(
-              backgroundColor: scheme.primary,
-              foregroundColor: Colors.white,
+          child: Container(
+            height: 52,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: const LinearGradient(
+                colors: [StafivoColors.primary, StafivoColors.secondary],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: StafivoColors.secondary.withValues(alpha: 0.28),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
-            child: const Text('Check In'),
+            child: ElevatedButton(
+              onPressed: _busy ? null : () => _doAction('IN'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.login_rounded, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Check In',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 14),
+        // ── Check Out ─────────────────────────
         Expanded(
-          child: FilledButton.tonal(
-            onPressed: _busy ? null : () => _doAction('OUT'),
-            style: FilledButton.styleFrom(
-              backgroundColor: scheme.primary.withValues(alpha: 0.12),
-              foregroundColor: scheme.primary,
+          child: Container(
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFCBD5E1), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
             ),
-            child: const Text('Check Out'),
+            child: ElevatedButton(
+              onPressed: _busy ? null : () => _doAction('OUT'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                shadowColor: Colors.transparent,
+                foregroundColor: StafivoColors.textPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.logout_rounded,
+                      size: 20, color: Color(0xFFDC2626)),
+                  SizedBox(width: 8),
+                  Text(
+                    'Check Out',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: StafivoColors.textPrimary,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _statusRow({
-    required String label,
-    required bool complete,
-    String? subtitle,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(
-          complete ? Icons.check_circle_rounded : Icons.radio_button_unchecked,
-          color: complete ? scheme.primary : scheme.onSurface.withValues(alpha: 0.3),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: complete ? scheme.primary : scheme.onSurface.withValues(alpha: 0.7),
-                ),
-              ),
-              if (subtitle != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: scheme.onSurface.withValues(alpha: 0.6),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildBootstrapError(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -1113,57 +1286,229 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     );
   }
 
+  // ── Dual Biometric Telemetry HUD ──────────────────────────────────────────
+  Widget _buildTelemetryHUD() {
+    return Row(
+      children: [
+        // Face ID Status Card
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: _faceCheckPassed ? const Color(0xFFF0FDF4) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _faceCheckPassed
+                    ? const Color(0xFF86EFAC)
+                    : StafivoColors.border,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: _faceCheckPassed
+                        ? const Color(0xFFDCFCE7)
+                        : const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    _faceCheckPassed
+                        ? Icons.check_circle_rounded
+                        : Icons.face_rounded,
+                    color: _faceCheckPassed
+                        ? StafivoColors.success
+                        : StafivoColors.secondary,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Face ID',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: StafivoColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _faceCheckPassed
+                            ? (_lastFaceScore != null
+                                ? '${(_lastFaceScore! * 100).toStringAsFixed(0)}% Match'
+                                : 'Verified')
+                            : (_busy ? 'Scanning...' : 'Ready'),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: _faceCheckPassed
+                              ? const Color(0xFF15803D)
+                              : StafivoColors.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Geofence Location Card
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color:
+                  _locationCheckPassed ? const Color(0xFFF0FDF4) : Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _locationCheckPassed
+                    ? const Color(0xFF86EFAC)
+                    : StafivoColors.border,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.02),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: _locationCheckPassed
+                        ? const Color(0xFFDCFCE7)
+                        : const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    _locationCheckPassed
+                        ? Icons.check_circle_rounded
+                        : Icons.location_on_rounded,
+                    color: _locationCheckPassed
+                        ? StafivoColors.success
+                        : StafivoColors.secondary,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Location',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: StafivoColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _locationCheckPassed
+                            ? (_locationStatusMessage ?? 'Verified (In Radius)')
+                            : (_busy ? 'Checking...' : (_locationStatusMessage ?? 'In Radius')),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: _locationCheckPassed
+                              ? const Color(0xFF15803D)
+                              : StafivoColors.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildStatusCard() {
-    final scheme = Theme.of(context).colorScheme;
     final summary = _lastActionSummary ?? _status;
-    final cardColor = scheme.surfaceContainerHighest.withValues(alpha: 0.4);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
       decoration: BoxDecoration(
-        color: cardColor,
-        borderRadius: BorderRadius.circular(28),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: StafivoColors.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          _statusRow(
-            label: 'Face check complete',
-            complete: _faceCheckPassed,
-            subtitle: _faceCheckPassed && _lastFaceScore != null
-                ? 'Confidence ${(_lastFaceScore! * 100).toStringAsFixed(1)}%'
-                : null,
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.history_rounded,
+                color: StafivoColors.secondary, size: 18),
           ),
-          const SizedBox(height: 16),
-          _statusRow(
-            label: 'Location verified',
-            complete: _locationCheckPassed,
-            subtitle: _locationStatusMessage,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.access_time, color: scheme.primary),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      summary,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _status,
-                      style: TextStyle(color: scheme.onSurface.withValues(alpha: 0.7)),
-                    ),
-                  ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  summary,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: StafivoColors.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  _status,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: StafivoColors.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
+          if (_busy)
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: StafivoColors.secondary,
+              ),
+            ),
         ],
       ),
     );
@@ -1173,7 +1518,8 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   Widget build(BuildContext context) {
     if (!_ready) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        backgroundColor: StafivoColors.background,
+        body: Center(child: CircularProgressIndicator(color: StafivoColors.primary)),
       );
     }
 
@@ -1186,9 +1532,10 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     final previewHeight = size.height * 0.38;
 
     return Scaffold(
-      appBar: workForgeAppBar(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: stafivoAppBar(
         context,
-        'Check-in / Check-out',
+        'STAFIVO Punch',
         implyLeading: false,
         actions: [
           if (_deletingAccount)
@@ -1200,40 +1547,85 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
-          else ...([
-            IconButton(
-              icon: const Icon(Icons.delete_forever_rounded),
-              tooltip: 'Delete account',
-              color: Colors.red.shade400,
-              onPressed: _handleDeleteAccount,
+          else ...[
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert_rounded,
+                  color: StafivoColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              onSelected: (val) {
+                if (val == 'dashboard') {
+                  Navigator.of(context).pushNamed('/worker-dashboard');
+                } else if (val == 'logout') {
+                  _handleLogout();
+                } else if (val == 'delete') {
+                  _handleDeleteAccount();
+                }
+              },
+              itemBuilder: (ctx) => [
+                const PopupMenuItem(
+                  value: 'dashboard',
+                  child: Row(
+                    children: [
+                      Icon(Icons.dashboard_outlined,
+                          size: 18, color: StafivoColors.primary),
+                      SizedBox(width: 10),
+                      Text('My Dashboard'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout_rounded,
+                          size: 18, color: StafivoColors.textSecondary),
+                      SizedBox(width: 10),
+                      Text('Log out'),
+                    ],
+                  ),
+                ),
+                const PopupMenuDivider(),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: Row(
+                    children: [
+                      Icon(Icons.delete_forever_rounded,
+                          size: 18, color: Colors.red.shade600),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Delete Account',
+                        style: TextStyle(
+                          color: Colors.red.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            IconButton(
-              icon: const Icon(Icons.logout),
-              tooltip: 'Log out',
-              onPressed: _handleLogout,
-            ),
-          ]),
+            const SizedBox(width: 6),
+          ],
         ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- CHANGED: Worker info card replaces outlet+worker dropdown card ---
-              _buildWorkerInfoCard(scheme),
-              // --- END CHANGED ---
-              const SizedBox(height: 10),
-              // ── My Dashboard card ─────────────────────────────────────────
-              _buildDashboardCard(scheme),
-              const SizedBox(height: 16),
-              if (_pipelineError != null)
+              // ── Executive Worker Header ────────────────────────
+              _buildWorkerHeader(scheme),
+              const SizedBox(height: 14),
+
+              if (_pipelineError != null) ...[
                 Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: scheme.error.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(
                     'Embedding disabled: $_pipelineError',
@@ -1243,12 +1635,24 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
                     ),
                   ),
                 ),
-              if (_pipelineError != null) const SizedBox(height: 16),
+                const SizedBox(height: 14),
+              ],
+
+              // ── Biometric Camera Preview ───────────────────────
               _buildCameraPreview(previewHeight),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
+
+              // ── Dual Telemetry HUD ─────────────────────────────
+              _buildTelemetryHUD(),
+              const SizedBox(height: 16),
+
+              // ── Action Buttons ─────────────────────────────────
               _buildActionButtons(scheme),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
+
+              // ── Real-time Status Strip ─────────────────────────
               _buildStatusCard(),
+              const SizedBox(height: 12),
             ],
           ),
         ),
