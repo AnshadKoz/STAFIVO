@@ -25,7 +25,7 @@ class CheckInScreen extends StatefulWidget {
   State<CheckInScreen> createState() => _CheckInScreenState();
 }
 
-class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
+class _CheckInScreenState extends State<CheckInScreen> with RouteAware, WidgetsBindingObserver {
   // Face verification thresholds
   // SECURITY: Verification is intentionally stricter than enrollment
   // - Enrollment: Permissive (allows enrollment in varied conditions)
@@ -58,11 +58,14 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
   bool _locationCheckPassed = false;
   String? _lastActionSummary;
   String? _locationStatusMessage;
+  String? _pendingAction; // remembers in/out action for lifecycle retry
+  bool _isLocationDialogOpen = false; // tracks whether the location dialog is visible
   bool _deletingAccount = false; // guards against double-tap on delete
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initAll();
     _pendingTimer = Timer.periodic(const Duration(seconds: 5), (_) => _checkPendingQueue());
   }
@@ -330,12 +333,49 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     railRouteObserver.unsubscribe(this);
     _disposeCameraController(updateState: false);
     _cropper.close();
     _embedder.close();
     _pendingTimer?.cancel();
     super.dispose();
+  }
+
+  // ── Lifecycle: auto-retry location when returning from system settings ───
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // ignore: avoid_print
+      print('[location] app resumed');
+
+      // Close the location dialog if it is still on screen
+      if (_isLocationDialogOpen && mounted && Navigator.canPop(context)) {
+        // ignore: avoid_print
+        print('[location] closing dialog after resume');
+        Navigator.of(context, rootNavigator: true).pop();
+        _isLocationDialogOpen = false;
+      }
+
+      _retryLocationIfEnabled();
+    }
+  }
+
+  Future<void> _retryLocationIfEnabled() async {
+    // Only retry if there is a pending action AND the screen is still active
+    if (_pendingAction == null || !mounted) return;
+
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!mounted) return;
+
+    if (serviceEnabled) {
+      // ignore: avoid_print
+      print('[location] service enabled after resume → retrying');
+      _continueLocationCheck(_pendingAction!);
+    } else {
+      // ignore: avoid_print
+      print('[location] still disabled after resume');
+    }
   }
 
   @override
@@ -382,6 +422,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
         _faceCheckPassed = true;
         _status = 'Checking location...';
       });
+      _pendingAction = action; // store for lifecycle-based retry
       final success = await _continueLocationCheck(action);
       if (!success) return;
     } finally {
@@ -391,7 +432,62 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware {
     }
   }
 
+  // ── Location-disabled dialog ─────────────────────────────────────────────
+  void _showLocationDisabledDialog(BuildContext ctx, String action) {
+    _isLocationDialogOpen = true;
+    showDialog(
+      context: ctx,
+      barrierDismissible: false,
+      builder: (_) => AlertDialog(
+        title: const Text('Location Required'),
+        content: const Text(
+          'Please turn on location services to continue check-in.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+
+              await Geolocator.openLocationSettings();
+
+              // ⏳ Give the OS a moment to propagate the location toggle
+              await Future.delayed(const Duration(seconds: 2));
+
+              if (mounted) {
+                // ignore: avoid_print
+                print('[location] returned from settings → retrying');
+                _continueLocationCheck(action);
+              }
+            },
+            child: const Text('Turn On'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    ).then((_) {
+      // Clear flag whenever dialog closes (any reason: Turn On, Cancel, back)
+      _isLocationDialogOpen = false;
+    });
+  }
+
   Future<bool> _continueLocationCheck(String action) async {
+    // ── Guard: show dialog immediately if location services are OFF ──────
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      // ignore: avoid_print
+      print('[location] service disabled → showing popup');
+      if (mounted) {
+        _showLocationDisabledDialog(context, action);
+        setState(() {
+          _locationStatusMessage = 'Location is turned off';
+        });
+      }
+      return false;
+    }
+
     // --- CHANGED: Uses _workerId instead of _selectedWorkerId ---
     final outlet = await SupabaseRepo.outletByWorker(_workerId!);
     developer.log('DEBUG outlet for worker $_workerId => $outlet', name: 'CheckInScreen');
