@@ -1,4 +1,4 @@
-﻿import 'dart:developer' as developer;
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -37,17 +37,27 @@ class _SalaryScreenState extends State<SalaryScreen> {
   bool _hasMoreAdj = true;
   int _adjOffset = 0;
 
+  bool _initialized = false; // race-condition guard
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadInitial());
+    // _loadInitial() is triggered from didChangeDependencies once WorkerContext is ready.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ctx = context.read<WorkerContext>();
+    if (ctx.isLoaded && !_initialized) {
+      _initialized = true;
+      _loadInitial();
+    }
   }
 
   Future<String?> _resolveWorkerId() async {
-    final ctx = context.read<WorkerContext>();
-    if (ctx.isLoaded && ctx.workerId != null) return ctx.workerId;
-    await ctx.load();
-    return ctx.workerId;
+    // WorkerContext is guaranteed loaded by didChangeDependencies guard.
+    return context.read<WorkerContext>().workerId;
   }
 
   Future<void> _loadInitial() async {
@@ -313,6 +323,15 @@ class _SalaryScreenState extends State<SalaryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Wait for WorkerContext before rendering — prevents false error on first open.
+    final ctx = context.watch<WorkerContext>();
+    if (!ctx.isLoaded) {
+      return Scaffold(
+        appBar: stafivoAppBar(context, 'Salary & Adjustments', implyLeading: false),
+        body: const SafeArea(child: Center(child: CircularProgressIndicator())),
+      );
+    }
+
     return Scaffold(
       appBar: stafivoAppBar(context, 'Salary & Adjustments', implyLeading: false),
       backgroundColor: StafivoColors.background,

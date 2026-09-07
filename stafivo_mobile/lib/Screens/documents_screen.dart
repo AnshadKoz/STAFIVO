@@ -1,7 +1,12 @@
-﻿import 'dart:developer' as developer;
+import 'dart:developer' as developer;
+import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:uuid/uuid.dart';
 import '../services/worker_context.dart';
 import '../theme/stafivo_colors.dart';
 import '../widgets/async_state_widget.dart';
@@ -25,20 +30,33 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
   static const _signedUrlExpiry = 3600;
 
   bool _loading = true;
+  bool _uploading = false; // isolated upload-in-progress guard
   String? _error;
   List<Map<String, dynamic>> _documents = [];
+
+  static const _maxFileSizeBytes = 5 * 1024 * 1024; // 5 MB
+
+  bool _initialized = false; // race-condition guard
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _load());
+    // _load() is triggered from didChangeDependencies once WorkerContext is ready.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ctx = context.read<WorkerContext>();
+    if (ctx.isLoaded && !_initialized) {
+      _initialized = true;
+      _load();
+    }
   }
 
   Future<String?> _resolveWorkerId() async {
-    final ctx = context.read<WorkerContext>();
-    if (ctx.isLoaded && ctx.workerId != null) return ctx.workerId;
-    await ctx.load();
-    return ctx.workerId;
+    // WorkerContext is guaranteed loaded by didChangeDependencies guard.
+    return context.read<WorkerContext>().workerId;
   }
 
   Future<void> _load() async {
@@ -75,6 +93,108 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     }
   }
 
+  Future<void> _upload(String kind) async {
+    // Prevent double-tap during an active upload
+    if (_uploading) return;
+
+    try {
+      developer.log('[docs] picking file', name: 'DocumentsScreen');
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+      );
+
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      final path = file.path;
+      if (path == null) return;
+
+      // ── Task 1: File size guard (5 MB) ───────────────────────────────────
+      if ((file.size) > _maxFileSizeBytes) {
+        _showSnack('File too large. Maximum size is 5MB.', isError: true);
+        return;
+      }
+
+      final workerId = await _resolveWorkerId();
+      if (!mounted) return;
+      if (workerId == null) {
+        _showSnack('Worker profile not found', isError: true);
+        return;
+      }
+
+      // ── Task 2: Network guard (pre-upload) ───────────────────────────────
+      try {
+        final _ = await InternetAddress.lookup('supabase.com')
+            .timeout(const Duration(seconds: 5));
+      } on SocketException {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('No Internet Connection'),
+            content: const Text(
+                'Please turn on mobile data or Wi-Fi.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK')),
+            ],
+          ),
+        );
+        return;
+      } on TimeoutException {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('No Internet Connection'),
+            content: const Text(
+                'Please turn on mobile data or Wi-Fi.'),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK')),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // ── Task 3: Set uploading state (disables button) ────────────────────
+      if (!mounted) return;
+      setState(() => _uploading = true);
+
+      developer.log('[docs] uploading to storage', name: 'DocumentsScreen');
+      final uuid = const Uuid().v4();
+      final safeName = file.name.replaceAll(RegExp(r'[^a-zA-Z0-9.\-]'), '_');
+      final storagePath = '$workerId/$uuid-$safeName';
+
+      await _client.storage.from(_bucket).upload(storagePath, File(path));
+      developer.log('[docs] upload success path=$storagePath', name: 'DocumentsScreen');
+
+      developer.log('[docs] inserting db record', name: 'DocumentsScreen');
+      await _client.from('worker_documents').insert({
+        'worker_id': workerId,
+        'kind': kind,
+        'storage_path': storagePath,
+        'original_name': file.name,
+      });
+      developer.log('[docs] insert success', name: 'DocumentsScreen');
+
+      if (!mounted) return;
+      _showSnack('Document uploaded successfully.');
+      await _load();
+    } catch (e) {
+      developer.log('[docs] upload failed: $e', name: 'DocumentsScreen');
+      // ── Task 4: Friendly error — no raw exception exposed ────────────────
+      if (!mounted) return;
+      _showSnack('Upload failed. Please check your connection and try again.', isError: true);
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
   Future<void> _delete(Map<String, dynamic> doc) async {
     final storagePath = doc['storage_path']?.toString() ?? '';
     final docId = doc['id']?.toString() ?? '';
@@ -83,6 +203,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       await _client.storage.from(_bucket).remove([storagePath]);
     } catch (e) {
       developer.log('Storage delete failed (preserving DB): $e', name: 'DocumentsScreen');
+      if (!mounted) return; // Task 6: mounted guard
       _showSnack('Could not delete file from storage.', isError: true);
       return; // DO NOT delete DB
     }
@@ -91,8 +212,11 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       await _client.from('worker_documents').delete().eq('id', docId);
     } catch (e) {
       developer.log('DB delete failed after storage delete: $e', name: 'DocumentsScreen');
+      if (!mounted) return; // Task 6: mounted guard
       _showSnack('File removed but record cleanup failed.', isError: true);
+      return;
     }
+    if (!mounted) return; // Task 6: mounted guard
     _showSnack('Document deleted.');
     await _load();
   }
@@ -133,6 +257,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Wait for WorkerContext before rendering — prevents false error on first open.
+    final ctx = context.watch<WorkerContext>();
+    if (!ctx.isLoaded) {
+      return Scaffold(
+        appBar: stafivoAppBar(context, 'My Documents', implyLeading: false),
+        body: const SafeArea(child: Center(child: CircularProgressIndicator())),
+      );
+    }
+
     return Scaffold(
       appBar: stafivoAppBar(context, 'My Documents', implyLeading: false),
       backgroundColor: StafivoColors.background,
@@ -161,27 +294,6 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Container(
-          padding: const EdgeInsets.all(14),
-          margin: const EdgeInsets.only(bottom: 16),
-          decoration: BoxDecoration(
-            color: StafivoColors.infoBg,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: StafivoColors.info.withValues(alpha: 0.3)),
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.info_outline_rounded, color: StafivoColors.info, size: 18),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Document upload is available on the web dashboard. Files uploaded there appear here.',
-                  style: TextStyle(fontSize: 12, color: StafivoColors.info),
-                ),
-              ),
-            ],
-          ),
-        ),
         for (final (kind, label, icon) in categories) ...[
           _CategorySection(
             kind: kind,
@@ -189,6 +301,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             icon: icon,
             docs: byKind[kind] ?? [],
             onDelete: _confirmDelete,
+            // Task 3: pass uploading flag so button can be disabled
+            onUpload: _uploading ? null : () => _upload(kind),
           ),
           const SizedBox(height: 16),
         ],
@@ -204,12 +318,15 @@ class _CategorySection extends StatelessWidget {
     required this.icon,
     required this.docs,
     required this.onDelete,
+    required this.onUpload,
   });
   final String kind;
   final String label;
   final IconData icon;
   final List<Map<String, dynamic>> docs;
   final void Function(Map<String, dynamic>) onDelete;
+  // Task 3: nullable — null disables the button during upload
+  final VoidCallback? onUpload;
 
   @override
   Widget build(BuildContext context) {
@@ -247,6 +364,23 @@ class _CategorySection extends StatelessWidget {
                           color: StafivoColors.info)),
                 ),
               ],
+              const Spacer(),
+              // Task 3: show progress spinner when uploading, else upload icon
+              if (onUpload == null)
+                const Padding(
+                  padding: EdgeInsets.all(12),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.upload_rounded, size: 20, color: StafivoColors.primary),
+                  onPressed: onUpload,
+                  tooltip: 'Upload $label',
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -309,18 +443,44 @@ class _DocumentTile extends StatelessWidget {
           ),
           if (signedUrl != null)
             Tooltip(
-              message: 'Tap to view signed URL',
+              message: 'Tap to view document',
               child: IconButton(
                 icon: const Icon(Icons.link_rounded,
                     size: 20, color: StafivoColors.info),
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(signedUrl,
-                        maxLines: 2, overflow: TextOverflow.ellipsis),
-                    action: SnackBarAction(label: 'OK', onPressed: () {}),
-                    duration: const Duration(seconds: 6),
-                  ),
-                ),
+                onPressed: () async {
+                  developer.log('[docs] opening signed url', name: 'DocumentsScreen');
+                  // Task 5: validate URI before attempting launch
+                  Uri? uri;
+                  try {
+                    uri = Uri.parse(signedUrl);
+                    if (!uri.hasScheme || !uri.hasAuthority) throw const FormatException('invalid uri');
+                  } catch (_) {
+                    developer.log('[docs] launch failed — invalid uri', name: 'DocumentsScreen');
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Could not open document link')),
+                      );
+                    }
+                    return;
+                  }
+                  try {
+                    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+                      developer.log('[docs] launch failed', name: 'DocumentsScreen');
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Could not open document link')),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    developer.log('[docs] launch failed', name: 'DocumentsScreen', error: e);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Could not open document link')),
+                      );
+                    }
+                  }
+                },
               ),
             ),
           IconButton(

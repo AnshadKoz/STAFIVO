@@ -1,4 +1,4 @@
-﻿import 'dart:developer' as developer;
+import 'dart:developer' as developer;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -28,18 +28,29 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
   double _weeklyHours = 0;
   double _monthlyHours = 0;
 
+  bool _initialized = false; // race-condition guard
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+    // _loadData() is triggered from didChangeDependencies once WorkerContext is ready.
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ctx = context.read<WorkerContext>();
+    if (ctx.isLoaded && !_initialized) {
+      _initialized = true;
+      _loadData();
+    }
   }
 
   Future<void> _loadData() async {
     setState(() { _loading = true; _error = null; });
     try {
-      // Ensure WorkerContext is loaded (no-op if already cached)
+      // WorkerContext is guaranteed loaded by didChangeDependencies guard.
       final ctx = context.read<WorkerContext>();
-      await ctx.load();
       if (ctx.workerId == null) throw Exception('Worker profile not found');
       final workerId = ctx.workerId!;
 
@@ -146,6 +157,16 @@ class _WorkerDashboardScreenState extends State<WorkerDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Wait for WorkerContext to be ready before rendering content or
+    // triggering _loadData — prevents false "Failed to load" on first open.
+    final ctx = context.watch<WorkerContext>();
+    if (!ctx.isLoaded) {
+      return Scaffold(
+        appBar: stafivoAppBar(context, 'My Dashboard', implyLeading: false),
+        body: const SafeArea(child: Center(child: CircularProgressIndicator())),
+      );
+    }
+
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: stafivoAppBar(context, 'My Dashboard', implyLeading: false),
