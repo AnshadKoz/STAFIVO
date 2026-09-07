@@ -18,6 +18,7 @@ import '../widgets/face_frame_overlay.dart';
 import '../widgets/stafivo_app_bar.dart';
 import '../widgets/alert_dialog_helper.dart';
 import '../theme/stafivo_colors.dart';
+import 'worker_shell.dart';
 
 class CheckInScreen extends StatefulWidget {
   const CheckInScreen({super.key});
@@ -1021,7 +1022,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware, WidgetsB
           Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: () => Navigator.of(context).pushNamed('/worker-dashboard'),
+              onTap: () => workerShellKey.currentState?.switchToTab(1),
               borderRadius: BorderRadius.circular(12),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
@@ -1693,26 +1694,13 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware, WidgetsB
                 borderRadius: BorderRadius.circular(16),
               ),
               onSelected: (val) {
-                if (val == 'dashboard') {
-                  Navigator.of(context).pushNamed('/worker-dashboard');
-                } else if (val == 'logout') {
+                if (val == 'logout') {
                   _handleLogout();
                 } else if (val == 'delete') {
                   _handleDeleteAccount();
                 }
               },
               itemBuilder: (ctx) => [
-                const PopupMenuItem(
-                  value: 'dashboard',
-                  child: Row(
-                    children: [
-                      Icon(Icons.dashboard_outlined,
-                          size: 18, color: StafivoColors.primary),
-                      SizedBox(width: 10),
-                      Text('My Dashboard'),
-                    ],
-                  ),
-                ),
                 const PopupMenuItem(
                   value: 'logout',
                   child: Row(

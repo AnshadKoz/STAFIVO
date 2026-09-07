@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../screens/checkin_screen.dart';
@@ -8,6 +8,10 @@ import '../screens/salary_screen.dart';
 import '../screens/documents_screen.dart';
 import '../services/worker_context.dart';
 import '../theme/stafivo_colors.dart';
+
+/// GlobalKey that lets child screens switch the shell's bottom-nav tab
+/// without pushing a new route (avoids back-button dead-ends).
+final workerShellKey = GlobalKey<_WorkerShellState>();
 
 /// WorkerShell — bottom-navigation shell for the worker module.
 ///
@@ -23,6 +27,12 @@ class WorkerShell extends StatefulWidget {
 
 class _WorkerShellState extends State<WorkerShell> {
   int _currentIndex = 0;
+
+  /// Switch the bottom-nav to [index] — callable by child screens via
+  /// [workerShellKey.currentState?.switchToTab(i)].
+  void switchToTab(int index) {
+    if (mounted) setState(() => _currentIndex = index);
+  }
 
   static const List<Widget> _tabs = [
     CheckInScreen(),

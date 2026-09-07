@@ -45,9 +45,9 @@ class StafivoApp extends StatelessWidget {
         '/login': (_) => const LoginScreen(),
         '/welcome': (_) => const WelcomeScreen(),
         // Legacy direct route — preserved for backward compatibility
-        '/check': (_) => const WorkerShell(),
+        '/check': (_) => WorkerShell(key: workerShellKey),
         '/worker-dashboard': (_) => const WorkerDashboardScreen(),
-        '/worker-shell': (_) => const WorkerShell(),
+        '/worker-shell': (_) => WorkerShell(key: workerShellKey),
       },
       navigatorObservers: [railRouteObserver],
       onGenerateRoute: (settings) {
