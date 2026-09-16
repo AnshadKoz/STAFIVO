@@ -4,8 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/worker_context.dart';
 import '../theme/stafivo_colors.dart';
-import '../widgets/async_state_widget.dart';
-import '../widgets/stafivo_app_bar.dart';
 
 /// Salary Screen — paginated payroll records + adjustments with fine appeals.
 /// Uses WorkerContext to avoid re-fetching worker profile.
@@ -260,6 +258,7 @@ class _SalaryScreenState extends State<SalaryScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => Padding(
@@ -267,31 +266,80 @@ class _SalaryScreenState extends State<SalaryScreen> {
             left: 24,
             right: 24,
             top: 24,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24),
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Appeal this fine',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            Text('Adjustment on ${adj['effective_date'] ?? ''}',
-                style: const TextStyle(
-                    fontSize: 13, color: StafivoColors.textSecondary)),
-            const SizedBox(height: 16),
+            // Handle bar
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEDED),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.gavel_rounded,
+                      color: Color(0xFFEF4444), size: 20),
+                ),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Appeal this fine',
+                        style: TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w700)),
+                    Text(
+                      'Adjustment on ${adj['effective_date'] ?? ''}',
+                      style: const TextStyle(
+                          fontSize: 12, color: StafivoColors.textSecondary),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
             TextField(
               controller: controller,
               maxLines: 4,
               decoration: InputDecoration(
-                hintText: 'Explain why this fine should be removed',
+                hintText: 'Explain why this fine should be removed…',
+                hintStyle: const TextStyle(color: StafivoColors.textMuted),
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(
+                      color: StafivoColors.primary, width: 1.5),
+                ),
                 contentPadding: const EdgeInsets.all(14),
               ),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
+              height: 50,
               child: FilledButton(
                 onPressed: () async {
                   final reason = controller.text.trim();
@@ -306,11 +354,10 @@ class _SalaryScreenState extends State<SalaryScreen> {
                 style: FilledButton.styleFrom(
                   backgroundColor: StafivoColors.primary,
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                      borderRadius: BorderRadius.circular(14)),
                 ),
                 child: const Text('Submit Appeal',
-                    style: TextStyle(fontWeight: FontWeight.w700)),
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
               ),
             ),
           ],
@@ -326,69 +373,261 @@ class _SalaryScreenState extends State<SalaryScreen> {
     // Wait for WorkerContext before rendering — prevents false error on first open.
     final ctx = context.watch<WorkerContext>();
     if (!ctx.isLoaded) {
-      return Scaffold(
-        appBar: stafivoAppBar(context, 'Salary & Adjustments', implyLeading: false),
-        body: const SafeArea(child: Center(child: CircularProgressIndicator())),
+      return const Scaffold(
+        backgroundColor: Color(0xFFF8FAFC),
+        body: SafeArea(child: Center(child: CircularProgressIndicator())),
       );
     }
 
     return Scaffold(
-      appBar: stafivoAppBar(context, 'Salary & Adjustments', implyLeading: false),
-      backgroundColor: StafivoColors.background,
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
-        child: AsyncStateWidget(
-          loading: _loading,
-          error: _error,
-          onRetry: _loadInitial,
-          child: RefreshIndicator(
-            onRefresh: _loadInitial,
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // ── Rates banner (from shared context — zero extra fetch) ─────
-                _RatesBanner(),
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null
+                ? _buildError()
+                : _buildContent(ctx),
+      ),
+    );
+  }
 
-                const SizedBox(height: 20),
+  Widget _buildError() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFEDED),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Icon(Icons.error_outline_rounded,
+                  size: 36, color: Color(0xFFE53935)),
+            ),
+            const SizedBox(height: 20),
+            Text(_error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Color(0xFF1E293B),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: _loadInitial,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try Again'),
+              style: FilledButton.styleFrom(
+                backgroundColor: StafivoColors.primary,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-                // ── Payroll ──────────────────────────────────────────────────
-                const _SectionHeader(title: 'Salary History'),
-                const SizedBox(height: 8),
+  Widget _buildContent(WorkerContext ctx) {
+    return RefreshIndicator(
+      onRefresh: _loadInitial,
+      color: StafivoColors.primary,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          // ── Gradient header ───────────────────────────────────────────
+          SliverToBoxAdapter(child: _buildHeader(ctx)),
+
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+
+                // ── Salary History ──────────────────────────────────────
+                _buildSectionLabel('Salary History'),
+                const SizedBox(height: 10),
+
                 if (_payroll.isEmpty)
-                  const _EmptyCard(message: 'No salary records yet.')
+                  _EmptyCard(message: 'No salary records yet.',
+                      icon: Icons.payments_rounded)
                 else ...[
                   ..._payroll.map((rec) => _PayrollCard(rec: rec)),
-                  _PaginationFooter(
+                  _buildFooter(
                     hasMore: _hasMorePayroll,
                     loading: _loadingMorePayroll,
-                    onLoadMore: _loadMorePayroll,
+                    onLoad: _loadMorePayroll,
                   ),
                 ],
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
 
-                // ── Adjustments ──────────────────────────────────────────────
-                const _SectionHeader(title: 'Recent Adjustments'),
-                const SizedBox(height: 4),
-                const Text('OT, fines, incentives, deductions.',
-                    style: TextStyle(
-                        fontSize: 12, color: StafivoColors.textSecondary)),
-                const SizedBox(height: 8),
+                // ── Adjustments ─────────────────────────────────────────
+                Row(
+                  children: [
+                    _buildSectionLabel('Adjustments'),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEEF4FF),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text('OT · Fines · Incentives',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: StafivoColors.primary)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+
                 if (_adjustments.isEmpty)
-                  const _EmptyCard(message: 'No adjustments yet.')
+                  _EmptyCard(message: 'No adjustments yet.',
+                      icon: Icons.tune_rounded)
                 else ...[
                   ..._adjustments.map((adj) => _AdjustmentCard(
                         adj: adj,
                         onAppeal: () => _openAppealSheet(adj),
                       )),
-                  _PaginationFooter(
+                  _buildFooter(
                     hasMore: _hasMoreAdj,
                     loading: _loadingMoreAdj,
-                    onLoadMore: _loadMoreAdj,
+                    onLoad: _loadMoreAdj,
                   ),
                 ],
-                const SizedBox(height: 24),
+              ]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Gradient header + rates ────────────────────────────────────────────────
+  Widget _buildHeader(WorkerContext ctx) {
+    final base = ctx.baseSalaryPerHour;
+    final ot = ctx.otRatePerHour;
+
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF0F3D91), Color(0xFF1E63FF)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Salary & Adjustments',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Payroll records and pay adjustments',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.7),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Rates row
+            Row(
+              children: [
+                Expanded(
+                  child: _RateTile(
+                    icon: Icons.attach_money_rounded,
+                    label: 'Base Rate',
+                    value: base != null
+                        ? '₹${base.toStringAsFixed(2)}/hr'
+                        : 'Not set',
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _RateTile(
+                    icon: Icons.more_time_rounded,
+                    label: 'OT Rate',
+                    value: ot != null
+                        ? '₹${ot.toStringAsFixed(2)}/hr'
+                        : 'Not set',
+                  ),
+                ),
               ],
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionLabel(String label) {
+    return Text(
+      label,
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.w700,
+        color: StafivoColors.textSecondary,
+        letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _buildFooter({
+    required bool hasMore,
+    required bool loading,
+    required VoidCallback onLoad,
+  }) {
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+    if (!hasMore) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.check_circle_outline_rounded,
+                size: 13, color: StafivoColors.textMuted),
+            const SizedBox(width: 5),
+            const Text('All records loaded',
+                style:
+                    TextStyle(fontSize: 12, color: StafivoColors.textMuted)),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Center(
+        child: OutlinedButton.icon(
+          onPressed: onLoad,
+          icon: const Icon(Icons.expand_more_rounded, size: 18),
+          label: const Text('Load More'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: StafivoColors.primary,
+            side: const BorderSide(color: StafivoColors.primary),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ),
@@ -396,33 +635,44 @@ class _SalaryScreenState extends State<SalaryScreen> {
   }
 }
 
-// ── Rates banner — reads from WorkerContext, zero extra fetch ─────────────────
+// ── Rate tile ─────────────────────────────────────────────────────────────────
 
-class _RatesBanner extends StatelessWidget {
-  const _RatesBanner();
-
-  String _rate(double? v) => v != null ? '₹${v.toStringAsFixed(2)}/hr' : 'Not set';
+class _RateTile extends StatelessWidget {
+  const _RateTile(
+      {required this.icon, required this.label, required this.value});
+  final IconData icon;
+  final String label;
+  final String value;
 
   @override
   Widget build(BuildContext context) {
-    final ctx = context.watch<WorkerContext>();
-    if (!ctx.isLoaded) return const SizedBox.shrink();
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: StafivoColors.primary.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: StafivoColors.primary.withValues(alpha: 0.15)),
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
+          Icon(icon, color: Colors.white70, size: 18),
+          const SizedBox(width: 10),
           Expanded(
-            child: _RateChip(
-                label: 'Base Rate', value: _rate(ctx.baseSalaryPerHour)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _RateChip(label: 'OT Rate', value: _rate(ctx.otRatePerHour)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500)),
+                const SizedBox(height: 2),
+                Text(value,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800)),
+              ],
+            ),
           ),
         ],
       ),
@@ -430,104 +680,32 @@ class _RatesBanner extends StatelessWidget {
   }
 }
 
-class _RateChip extends StatelessWidget {
-  const _RateChip({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label,
-            style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: StafivoColors.textSecondary)),
-        const SizedBox(height: 2),
-        Text(value,
-            style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: StafivoColors.primary)),
-      ],
-    );
-  }
-}
-
-// ── Shared UI pieces ──────────────────────────────────────────────────────────
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
-  final String title;
-
-  @override
-  Widget build(BuildContext context) => Text(title,
-      style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: StafivoColors.textPrimary));
-}
+// ── Empty card ────────────────────────────────────────────────────────────────
 
 class _EmptyCard extends StatelessWidget {
-  const _EmptyCard({required this.message});
+  const _EmptyCard({required this.message, required this.icon});
   final String message;
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: StafivoColors.border),
-        ),
-        child: Text(message,
-            style: const TextStyle(
-                color: StafivoColors.textMuted, fontSize: 13)),
-      );
-}
-
-class _PaginationFooter extends StatelessWidget {
-  const _PaginationFooter({
-    required this.hasMore,
-    required this.loading,
-    required this.onLoadMore,
-  });
-  final bool hasMore;
-  final bool loading;
-  final VoidCallback onLoadMore;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    if (!hasMore) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: Center(
-            child: Text('All records loaded',
-                style:
-                    TextStyle(fontSize: 12, color: StafivoColors.textMuted))),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Center(
-        child: loading
-            ? const SizedBox(
-                height: 24,
-                width: 24,
-                child: CircularProgressIndicator(strokeWidth: 2))
-            : OutlinedButton.icon(
-                onPressed: onLoadMore,
-                icon: const Icon(Icons.expand_more_rounded, size: 18),
-                label: const Text('Load More'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: StafivoColors.primary,
-                  side: const BorderSide(color: StafivoColors.primary),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 20, color: StafivoColors.textMuted),
+          const SizedBox(width: 10),
+          Text(message,
+              style: const TextStyle(
+                  color: StafivoColors.textMuted, fontSize: 13)),
+        ],
       ),
     );
   }
@@ -544,70 +722,184 @@ class _PayrollCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final total = (rec['calculated_total'] as num?) ?? 0;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: StafivoColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(rec['payroll_month']?.toString() ?? '—',
-                  style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: StafivoColors.textPrimary)),
-              Text(_cur(rec['calculated_total']),
-                  style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: StafivoColors.primary)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 12,
-            runSpacing: 6,
-            children: [
-              _CurrencyLabel(label: 'Base', value: _cur(rec['base_salary']), color: StafivoColors.info),
-              _CurrencyLabel(label: 'OT', value: _cur(rec['overtime']), color: StafivoColors.success),
-              _CurrencyLabel(label: 'Incentives', value: _cur(rec['incentives']), color: StafivoColors.teal),
-              _CurrencyLabel(label: 'Fines', value: _cur(rec['fines']), color: StafivoColors.error),
-            ],
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Navy left stripe
+              Container(
+                  width: 4,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF0F3D91), Color(0xFF1E63FF)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  )),
+
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Month + total
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEEF4FF),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: const Icon(Icons.calendar_month_rounded,
+                                    color: Color(0xFF0F3D91), size: 17),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                rec['payroll_month']?.toString() ?? '—',
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF0F3D91),
+                                  Color(0xFF1E63FF)
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '₹${total.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 14),
+                      Container(height: 1, color: const Color(0xFFF1F5F9)),
+                      const SizedBox(height: 12),
+
+                      // Breakdown grid
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _BreakdownItem(
+                              label: 'Base',
+                              value: _cur(rec['base_salary']),
+                              color: const Color(0xFF0EA5E9),
+                              bg: const Color(0xFFE0F7FF),
+                            ),
+                          ),
+                          Expanded(
+                            child: _BreakdownItem(
+                              label: 'Overtime',
+                              value: _cur(rec['overtime']),
+                              color: const Color(0xFF22C55E),
+                              bg: const Color(0xFFEFFFF5),
+                            ),
+                          ),
+                          Expanded(
+                            child: _BreakdownItem(
+                              label: 'Incentives',
+                              value: _cur(rec['incentives']),
+                              color: const Color(0xFF7C3AED),
+                              bg: const Color(0xFFF3E8FF),
+                            ),
+                          ),
+                          Expanded(
+                            child: _BreakdownItem(
+                              label: 'Fines',
+                              value: _cur(rec['fines']),
+                              color: const Color(0xFFEF4444),
+                              bg: const Color(0xFFFFEDED),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 }
 
-class _CurrencyLabel extends StatelessWidget {
-  const _CurrencyLabel(
-      {required this.label, required this.value, required this.color});
+class _BreakdownItem extends StatelessWidget {
+  const _BreakdownItem({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.bg,
+  });
   final String label;
   final String value;
   final Color color;
+  final Color bg;
 
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+          decoration: BoxDecoration(
+              color: bg, borderRadius: BorderRadius.circular(6)),
+          child: Text(label,
               style: TextStyle(
-                  fontSize: 10, fontWeight: FontWeight.w600, color: color)),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: StafivoColors.textPrimary)),
-        ],
-      );
+                  fontSize: 9, fontWeight: FontWeight.w700, color: color)),
+        ),
+        const SizedBox(height: 4),
+        Text(value,
+            style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF0F172A))),
+      ],
+    );
+  }
 }
 
 // ── Adjustment Card ───────────────────────────────────────────────────────────
@@ -617,22 +909,49 @@ class _AdjustmentCard extends StatelessWidget {
   final Map<String, dynamic> adj;
   final VoidCallback onAppeal;
 
-  Color _kindColor(String kind) => switch (kind) {
-        'ot' => StafivoColors.success,
-        'fine' => StafivoColors.error,
-        'incentive' => StafivoColors.info,
-        'deduction' => StafivoColors.warning,
-        _ => StafivoColors.textMuted,
-      };
+  static const _kindMeta = {
+    'ot': (
+      label: 'Overtime',
+      icon: Icons.more_time_rounded,
+      color: Color(0xFF22C55E),
+      bg: Color(0xFFEFFFF5),
+      accent: Color(0xFF22C55E),
+    ),
+    'fine': (
+      label: 'Fine',
+      icon: Icons.gavel_rounded,
+      color: Color(0xFFEF4444),
+      bg: Color(0xFFFFEDED),
+      accent: Color(0xFFEF4444),
+    ),
+    'incentive': (
+      label: 'Incentive',
+      icon: Icons.star_rounded,
+      color: Color(0xFF7C3AED),
+      bg: Color(0xFFF3E8FF),
+      accent: Color(0xFF7C3AED),
+    ),
+    'deduction': (
+      label: 'Deduction',
+      icon: Icons.remove_circle_outline_rounded,
+      color: Color(0xFFF59E0B),
+      bg: Color(0xFFFFFBEB),
+      accent: Color(0xFFF59E0B),
+    ),
+  };
 
   @override
   Widget build(BuildContext context) {
     final kind = adj['kind']?.toString() ?? '';
-    final color = _kindColor(kind);
+    final meta = _kindMeta[kind];
+    final color = meta?.color ?? const Color(0xFF64748B);
+    final bg = meta?.bg ?? const Color(0xFFF1F5F9);
+    final icon = meta?.icon ?? Icons.tune_rounded;
+    final label = meta?.label ?? kind.toUpperCase();
     final isOt = kind == 'ot';
     final isFine = kind == 'fine';
 
-    // Resolve appeal status from join (list or map form)
+    // Resolve appeal status from join
     String? appealStatus;
     final rawAppeal = adj['fine_appeals'];
     if (rawAppeal is List && rawAppeal.isNotEmpty) {
@@ -643,87 +962,146 @@ class _AdjustmentCard extends StatelessWidget {
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: StafivoColors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(kind.toUpperCase(),
-                style: TextStyle(
-                    fontSize: 11, fontWeight: FontWeight.w800, color: color)),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(adj['effective_date']?.toString() ?? '—',
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: StafivoColors.textPrimary)),
-                const SizedBox(height: 2),
-                Text(adj['note']?.toString() ?? '—',
-                    style: const TextStyle(
-                        fontSize: 12, color: StafivoColors.textSecondary),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                isOt
-                    ? '${((adj['hours'] as num?) ?? 0).toStringAsFixed(1)} hrs'
-                    : '₹${((adj['amount'] as num?) ?? 0).toStringAsFixed(2)}',
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: StafivoColors.textPrimary),
-              ),
-              if (isFine) ...[
-                const SizedBox(height: 6),
-                _appealBadge(appealStatus, onAppeal),
-              ],
-            ],
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Kind-colored left stripe
+              Container(width: 4, color: color),
+
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                  child: Row(
+                    children: [
+                      // Icon badge
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: bg,
+                          borderRadius: BorderRadius.circular(13),
+                        ),
+                        child: Icon(icon, color: color, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+
+                      // Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: bg,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(label,
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w700,
+                                          color: color)),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  adj['effective_date']?.toString() ?? '—',
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: StafivoColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 5),
+                            Text(
+                              adj['note']?.toString() ?? '—',
+                              style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF0F172A)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Value + appeal
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            isOt
+                                ? '${((adj['hours'] as num?) ?? 0).toStringAsFixed(1)} hrs'
+                                : '₹${((adj['amount'] as num?) ?? 0).toStringAsFixed(2)}',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                                color: color),
+                          ),
+                          if (isFine) ...[
+                            const SizedBox(height: 6),
+                            _appealWidget(appealStatus, onAppeal),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _appealBadge(String? status, VoidCallback onAppeal) {
+  Widget _appealWidget(String? status, VoidCallback onAppeal) {
     return switch (status) {
-      'approved' => _StatusChip('Resolved', StafivoColors.info),
-      'pending' => _StatusChip('Pending', StafivoColors.warning),
-      'rejected' => _StatusChip('Rejected', StafivoColors.error),
+      'approved' => _StatusChip('✓ Resolved', const Color(0xFF0EA5E9),
+          const Color(0xFFE0F7FF)),
+      'pending' => _StatusChip('⏳ Pending', const Color(0xFFF59E0B),
+          const Color(0xFFFFFBEB)),
+      'rejected' => _StatusChip('✕ Rejected', const Color(0xFFEF4444),
+          const Color(0xFFFFEDED)),
       _ => GestureDetector(
           onTap: onAppeal,
           child: Container(
             padding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              border: Border.all(color: StafivoColors.primary),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0F3D91), Color(0xFF1E63FF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Text('Appeal',
                 style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: StafivoColors.primary)),
+                    color: Colors.white)),
           ),
         ),
     };
@@ -731,15 +1109,16 @@ class _AdjustmentCard extends StatelessWidget {
 }
 
 class _StatusChip extends StatelessWidget {
-  const _StatusChip(this.label, this.color);
+  const _StatusChip(this.label, this.color, this.bg);
   final String label;
   final Color color;
+  final Color bg;
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: bg,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(label,
