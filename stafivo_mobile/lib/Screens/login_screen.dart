@@ -173,11 +173,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: StafivoColors.primary,
                                 borderRadius: BorderRadius.circular(18),
                                 border: Border.all(
-                                  color: Colors.white.withOpacity(0.15),
+                                  color: Colors.white.withValues(alpha: 0.15),
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: StafivoColors.primary.withOpacity(0.35),
+                                    color: StafivoColors.primary.withValues(alpha: 0.35),
                                     blurRadius: 28,
                                     offset: const Offset(0, 10),
                                   ),
@@ -236,7 +236,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                         backgroundColor: Colors.white,
                                         foregroundColor: StafivoColors.primary,
                                         disabledBackgroundColor:
-                                            Colors.white.withOpacity(0.5),
+                                            Colors.white.withValues(alpha: 0.5),
                                         elevation: 0,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(12),
@@ -353,16 +353,16 @@ class _LoginScreenState extends State<LoginScreen> {
         prefixIcon: Icon(icon, size: 18, color: Colors.white54),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white.withOpacity(0.12),
+        fillColor: Colors.white.withValues(alpha: 0.12),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.25)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.25)),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.25)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.25)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

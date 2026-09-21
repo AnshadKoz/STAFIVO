@@ -596,46 +596,46 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware, WidgetsB
   }
 
   Future<bool> _verifyFace() async {
-    print('[1] verifyFace start');
-    print('[2] workerId: $_workerId');
+    developer.log('[1] verifyFace start', name: 'CheckInScreen._verifyFace');
+    developer.log('[2] workerId: $_workerId', name: 'CheckInScreen._verifyFace');
 
     try {
       final shot = await _camera!.takePicture();
       final bytes = await shot.readAsBytes();
 
-      print('[4] generating embedding (face crop + ML detect)');
+      developer.log('[4] generating embedding (face crop + ML detect)', name: 'CheckInScreen._verifyFace');
       final tensor = await _cropper
           .cropAndPreprocess(bytes, imagePath: shot.path)
           .timeout(
             const Duration(seconds: 10),
             onTimeout: () {
-              print('[ERROR] cropAndPreprocess timed out after 10s');
+              developer.log('[ERROR] cropAndPreprocess timed out after 10s', name: 'CheckInScreen._verifyFace');
               return null;
             },
           );
 
       if (tensor == null) {
-        print('[9] FAILURE — no face or crop timed out');
+        developer.log('[9] FAILURE — no face or crop timed out', name: 'CheckInScreen._verifyFace');
         _toast('Need exactly one face. Hold steady and retry.');
         return false;
       }
-      print('[5] embedding generated');
+      developer.log('[5] embedding generated', name: 'CheckInScreen._verifyFace');
 
       // --- CHANGED: Uses _workerId instead of _selectedWorkerId ---
-      print('[3] fetching face profile for workerId=$_workerId');
+      developer.log('[3] fetching face profile for workerId=$_workerId', name: 'CheckInScreen._verifyFace');
       final profile = await SupabaseRepo.faceProfile(_workerId!)
           .timeout(
             const Duration(seconds: 8),
             onTimeout: () {
-              print('[ERROR] faceProfile() timed out after 8s');
+              developer.log('[ERROR] faceProfile() timed out after 8s', name: 'CheckInScreen._verifyFace');
               return null;
             },
           );
       // --- END CHANGED ---
-      print('[3] profile fetched: ${profile == null ? "null" : "found"}');
+      developer.log('[3] profile fetched: ${profile == null ? "null" : "found"}', name: 'CheckInScreen._verifyFace');
 
       if (profile == null) {
-        print('[9] FAILURE — no face profile for worker $_workerId');
+        developer.log('[9] FAILURE — no face profile for worker $_workerId', name: 'CheckInScreen._verifyFace');
         _toast('No face profile for this worker. Enroll first.');
         return false;
       }
@@ -652,23 +652,23 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware, WidgetsB
           name: 'CheckInScreen._verifyFace',
           level: 1000, // SHOUT level
         );
-        print('[ERROR] worker_id mismatch — selected=$_workerId profile=$profileWorkerId');
+        developer.log('[ERROR] worker_id mismatch — selected=$_workerId profile=$profileWorkerId', name: 'CheckInScreen._verifyFace');
         _toast('Security validation failed. Please try again or contact support.');
         return false;
       }
 
       final rawEmbedding = profile['embedding'];
       if (rawEmbedding is! List || rawEmbedding.isEmpty) {
-        print('[9] FAILURE — embedding missing in profile');
+        developer.log('[9] FAILURE — embedding missing in profile', name: 'CheckInScreen._verifyFace');
         _toast('Face profile missing embedding data. Please re-enroll this worker.');
         return false;
       }
 
       final storedEmbedding = rawEmbedding.map((e) => (e as num).toDouble()).toList();
-      print('[6] comparing faces (probe.len=${storedEmbedding.length})');
+      developer.log('[6] comparing faces (probe.len=${storedEmbedding.length})', name: 'CheckInScreen._verifyFace');
       final probe = _embedder.embed(tensor);
       if (storedEmbedding.length != probe.length) {
-        print('[9] FAILURE — embedding length mismatch stored=${storedEmbedding.length} probe=${probe.length}');
+        developer.log('[9] FAILURE — embedding length mismatch stored=${storedEmbedding.length} probe=${probe.length}', name: 'CheckInScreen._verifyFace');
         _toast('Face profile is outdated. Please re-enroll this worker.');
         return false;
       }
@@ -677,7 +677,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware, WidgetsB
       final distance = cosineDistance(probe, storedEmbedding);
       final confidence = 1 - distance;
       _lastFaceScore = confidence;
-      print('[7] match result: distance=$distance confidence=$confidence');
+      developer.log('[7] match result: distance=$distance confidence=$confidence', name: 'CheckInScreen._verifyFace');
 
       // CRITICAL: Dual-gate verification - BOTH checks must pass
       // This prevents low-quality matches (60-70%) from proceeding
@@ -685,7 +685,7 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware, WidgetsB
       //
       // Gate 1: Distance check (similarity threshold)
       if (distance > _faceThreshold) {
-        print('[9] FAILURE — distance $distance > threshold $_faceThreshold');
+        developer.log('[9] FAILURE — distance $distance > threshold $_faceThreshold', name: 'CheckInScreen._verifyFace');
         _toast('Face mismatch. Please try again.');
         return false;
       }
@@ -693,16 +693,16 @@ class _CheckInScreenState extends State<CheckInScreen> with RouteAware, WidgetsB
       // Gate 2: Confidence check (quality threshold)
       // Rejects faces detected in poor lighting, bad angles, or partial occlusion
       if (confidence < _faceMinConfidence) {
-        print('[9] FAILURE — confidence $confidence < minimum $_faceMinConfidence');
+        developer.log('[9] FAILURE — confidence $confidence < minimum $_faceMinConfidence', name: 'CheckInScreen._verifyFace');
         _toast('Face detected, but confidence is too low. Please hold the phone straight and try again.');
         return false;
       }
 
       // Both gates passed - proceed to location check
-      print('[8] SUCCESS — face verified for worker $_workerId');
+      developer.log('[8] SUCCESS — face verified for worker $_workerId', name: 'CheckInScreen._verifyFace');
       return true;
     } catch (e, stack) {
-      print('[ERROR] _verifyFace exception: $e');
+      developer.log('[ERROR] _verifyFace exception: $e', name: 'CheckInScreen._verifyFace');
       developer.log(
         '_verifyFace failed: $e',
         name: 'CheckInScreen._verifyFace',
